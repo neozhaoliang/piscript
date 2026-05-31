@@ -103,7 +103,18 @@ class PiScript(Canvas):
                 logger.error("Exiting ... ")
                 sys.exit(1)
             filename = pyfile[:-3]
-            bbox_args = args
+            # Support init(w, h, filename): extract any string from bbox args
+            bbox_args = []
+            for a in args:
+                if isinstance(a, str):
+                    if a.endswith(".eps"):
+                        filename = a[:-4]
+                    elif a.endswith(".ps"):
+                        filename = a[:-3]
+                    else:
+                        filename = a
+                else:
+                    bbox_args.append(a)
 
         if len(bbox_args) == 2:
             llx, lly, urx, ury = 0, 0, int(bbox_args[0]), int(bbox_args[1])

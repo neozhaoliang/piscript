@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.eps
+*.ps
+*.pdf
+*.dvi
+*.aux
+*.log
+*.tfm
+tmp*
+PiScript-tmp*.pys
+.DS_Store
+code-python2/
+examples/
+matching.py
+catalogue.tex

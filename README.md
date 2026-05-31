@@ -6,17 +6,44 @@ This is the Python 3 port of PiScript (originally written for Python 2). Below a
 
 ## Installation
 
+### Platform support
+
+Python 3 PiScript runs on **Windows**, **macOS**, and **Linux/Unix**. It requires a TeX distribution (TeX Live, MiKTeX, or MacTeX) for font and DVI file resources.
+
 | Item | Python 2 | Python 3 |
 |------|----------|----------|
 | Python version | 2.7 | 3.10+ |
+| Windows | Required `findtexmf` + `pykpse` C extension | Uses matplotlib's cross-platform `find_tex_file` |
+| macOS / Linux | `kpsewhich` CLI | matplotlib (primary) or `kpsewhich` (fallback) |
 | Numpy | Not required | Required |
-| `BuildChar` module | Available | Removed (was unused) |
-| `DviPS` module | Available | Not ported |
-| `Path` module | Available | Not ported |
-| `Colors` module | Available | Not ported |
-| `Curve` module | Available | Not ported |
-| `Eigs2d` module | Available | Not ported |
-| `MatrixUtils` module | Available | Not ported |
+| Matplotlib | Not required | Required (for `find_tex_file`) |
+| `pykpse` C extension | Optional | Not used |
+| Hardcoded paths | `/net/TeXLive/2010/...` fallback on Linux | None |
+
+### Font finding
+
+The font resource lookup has been completely rewritten for cross-platform support:
+
+| Aspect | Python 2 | Python 3 |
+|--------|----------|----------|
+| Primary method | `kpsewhich` CLI (`os.popen`) | `matplotlib.dviread.find_tex_file` (in-process, fast) |
+| Windows method | `findtexmf -file-type=` | Same as other platforms (matplotlib + TeX Live) |
+| Fallback | `pykpse` C extension | `kpsewhich` CLI (`subprocess.run`, safe) |
+| Negative caching | None (repeated failed lookups) | Yes (`_not_found` set) |
+| Extension handling | Manual | Automatic per resource type (`.tfm`, `.pfb`, `.vf`, `.enc`, `.map`) |
+| `getMapFilePath` | `os.popen("egrep ...")` with hardcoded fallback path | Removed; uses matplotlib lookup only |
+
+### Removed modules
+
+| Module | Notes |
+|--------|-------|
+| `BuildChar` | Unused (import was commented out) |
+| `DviPS` | Not ported from Python 2 |
+| `Path` | Not ported |
+| `Colors` | Not ported |
+| `Curve` | Not ported |
+| `Eigs2d` | Not ported |
+| `MatrixUtils` | Not ported |
 
 ## PiModule — Top-Level API
 
@@ -131,16 +158,3 @@ These Canvas methods existed in Python 2 but are removed in Python 3. They were 
 | `Font.py` | Separate module | Merged into `DeviceFont.py` |
 | `VectorUtils` alias | `from piscript.PiScript3d import *` re-exports `VU` | Same, via `import piscript.VectorUtils as VU` in PiScript3d |
 
-## Internal Changes (not user-visible)
-
-The Python 3 codebase has been significantly refactored to reduce boilerplate while preserving the same public API:
-
-- `Canvas.py`: `_emit()`/`_unpack_point()` helpers replace repeated patterns
-- `DviReader.py`: Factory-generated command classes replace hand-written duplicates; auto-dispatch `execute()` via base class
-- `PiModule.py`: Auto-proxy wrappers replace 100+ manual pass-through functions (799→320 lines)
-- `PiScript3d.py`: `_move3d()` helper unifies absolute/relative 3D drawing method pairs
-- `Arrows.py`: `_Transformable` mixin shares `translate()`/`rotate()` across 5 component classes
-- `DviToDevice.py`: `execSetRule`/`execPutRule` aliased; dead `_renderWithChars` path removed
-- `DeviceFont.py`: Merged `Font.py` (27 lines → class inside DeviceFont)
-- `BuildChar.py`: Deleted (unused, import was commented out)
-- Net reduction: ~1500 lines with no public API loss

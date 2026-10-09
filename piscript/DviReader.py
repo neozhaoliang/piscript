@@ -776,7 +776,8 @@ class DviReader:
         self.v += dvc.a*self.scaleFactor
 
     def execW0(self, dvc):
-        self.h += self.w*self.scaleFactor
+        # W was already scaled by execW; do not scale it twice.
+        self.h += self.w
 
     def execW(self, dvc):
         self.w = dvc.b*self.scaleFactor

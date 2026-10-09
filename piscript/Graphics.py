@@ -43,7 +43,10 @@ class GraphicsState(CoordinateSystem):
             self.linewidth = 1
             self.linecap = 0
 
-            self.color = [0,0,0]
+            self.color = [0, 0, 0]
+            self.linejoin = 0
+            self.miterlimit = 10.0
+            self.dash = [[], 0]
             """
             self.miterlimit = 10.0
             self.linejoin = 0
@@ -59,7 +62,10 @@ class GraphicsState(CoordinateSystem):
             self.linewidth = 1
             self.linecap = 0
 
-            self.color = [0,0,0]
+            self.color = [0, 0, 0]
+            self.linejoin = 0
+            self.miterlimit = 10.0
+            self.dash = [[], 0]
             """
             self.miterlimit = 10.0
             self.linejoin = 0
@@ -72,14 +78,17 @@ class GraphicsState(CoordinateSystem):
                 tm[0], tm[1], tm[2], tm[3], tm[4], tm[5]
             ]
             self.currentfont = g.currentfont
-            self.currentpoint = g.currentpoint
-            self.lastmove = g.lastmove
+            self.currentpoint = None if g.currentpoint is None else list(g.currentpoint)
+            self.lastmove = None if g.lastmove is None else list(g.lastmove)
             # self.reversion = g.reversion
 
             self.linewidth = g.linewidth
             self.linecap = g.linecap
 
-            self.color = g.color
+            self.color = list(g.color)
+            self.linejoin = g.linejoin
+            self.miterlimit = g.miterlimit
+            self.dash = [list(g.dash[0]), g.dash[1]]
             """
             self.miterlimit = g.miterlimit
             self.linejoin = g.linejoin
@@ -131,12 +140,7 @@ class Graphics:
             self.gstack.pop()
             self.glevel -= 1
         else:
-            print
-            
-            print("\t*** ERROR: There is an extra grestore! ***")
-            print("\t*** Ignoring it ... ***")
-            
-            print
+            logger.warning("Ignoring grestore without matching gsave")
 
     # --- coordinate changes ----------------------------------------------------------
 
@@ -145,7 +149,7 @@ class Graphics:
         gs = self.gstack[self.glevel]
         return GraphicsState(gs)
 
-    def ctm():
+    def ctm(self):
         gs = self.gstack[self.glevel]
         tm = gs.tm
         return [ tm[0], tm[1], tm[2], tm[3], tm[4], tm[5] ]
@@ -234,12 +238,12 @@ class Graphics:
         return A
 
     def ltransform(self, *args):
-        if len(args) == 1: # a single array of 4 numbers
-            a = args[0]
-            a.append(0)
-            a.append(0)
-        else: # len(args) == 2:
-            a = [ a[0][0], a[0][1], a[1][0], a[1][1], 0, 0 ]
+        if len(args) == 1:
+            a = list(args[0][:4]) + [0, 0]
+        elif len(args) == 2:
+            a = [args[0][0], args[0][1], args[1][0], args[1][1], 0, 0]
+        else:
+            raise TypeError("ltransform expects a matrix or two vectors")
         gs = self.gstack[self.glevel]
         gs.ltransform(a)
         return a
@@ -269,10 +273,10 @@ class Graphics:
         self._gs().linewidth *= c
 
     def setcolor(self, c):
-        self._gs().color = c
+        self._gs().color = list(c)
 
     def currentcolor(self):
-        return self._gs().color
+        return list(self._gs().color)
 
     def setlinewidth(self, c):
         self._gs().linewidth = c
@@ -293,10 +297,11 @@ class Graphics:
         return self._gs().linejoin
 
     def setdash(self, a, o):
-        self._gs().dash = [a, o]
+        self._gs().dash = [list(a), o]
 
     def currentdash(self):
-        return self._gs().dash
+        pattern, offset = self._gs().dash
+        return [list(pattern), offset]
 
     def setmiterlimit(self, x):
         self._gs().miterlimit = x
@@ -343,8 +348,7 @@ class Graphics:
     def lastmove(self):
         gs = self.gstack[self.glevel]
         P = gs.lastmove
-        P = gs.itransform(P)
-        return P
+        return None if P is None else gs.itransform(P)
         
     def setlastmove(self, P):
         gs = self.gstack[self.glevel]
@@ -354,7 +358,7 @@ class Graphics:
     def currentpoint(self):
         gs = self.gstack[self.glevel]
         P = gs.currentpoint
-        if P:
+        if P is not None:
             return gs.itransform(P)
         return None
 

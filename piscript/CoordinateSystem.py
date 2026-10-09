@@ -1,52 +1,66 @@
-import numpy as np
-from piscript.PSMatrix import transform as _pstransform, concat, lconcat
+"""Affine coordinate system using PostScript's [a, b, c, d, tx, ty] order."""
 
 import math
+
+from piscript.PSMatrix import concat, lconcat, rtransform, transform
 
 
 class CoordinateSystem:
     def transform(self, *args):
-        return _pstransform(self.tm, *args)
+        return transform(self.tm, *args)
 
-    def rtransform(self, V):
-        return _pstransform(self.tm[:4] + [0, 0], V)
+    def rtransform(self, *args):
+        return rtransform(self.tm, *args)
 
     def inversetm(self):
-        m = np.array(self.tm[:4]).reshape(2, 2)
-        inv = np.linalg.inv(m)
-        tx, ty = -self.tm[4], -self.tm[5]
-        return [inv[0, 0], inv[0, 1], inv[1, 0], inv[1, 1],
-                inv[0, 0] * tx + inv[0, 1] * ty,
-                inv[1, 0] * tx + inv[1, 1] * ty]
+        a, b, c, d, tx, ty = self.tm
+        det = a * d - b * c
+        if det == 0:
+            raise ValueError("cannot invert a singular affine transform")
+        return [
+            d / det, -b / det, -c / det, a / det,
+            (c * ty - d * tx) / det,
+            (b * tx - a * ty) / det,
+        ]
 
-    def itransform(self, P):
-        return _pstransform(self.inversetm(), P[0], P[1])
+    def itransform(self, *args):
+        return transform(self.inversetm(), *args)
 
-    def atransform(self, b):
-        self.tm[:] = concat(self.tm, b)
+    def atransform(self, matrix):
+        self.tm[:] = concat(self.tm, matrix)
 
-    def ltransform(self, b):
-        self.tm[:4] = lconcat(self.tm, b)
+    def ltransform(self, matrix):
+        self.tm[:4] = lconcat(self.tm, matrix)
 
     def translate(self, *args):
         if len(args) == 1:
             x, y = args[0]
-        else:
+        elif len(args) == 2:
             x, y = args
-        t = self.tm
-        t[4] += x * t[0] + y * t[2]
-        t[5] += x * t[1] + y * t[3]
+        else:
+            raise TypeError("translate expects a point or x, y")
+        a, b, c, d, tx, ty = self.tm
+        self.tm[4] = tx + a * x + c * y
+        self.tm[5] = ty + b * x + d * y
 
     def scale(self, *args):
         if len(args) == 1:
-            a = b = float(args[0])
+            sx = sy = float(args[0])
+        elif len(args) == 2:
+            sx, sy = map(float, args)
         else:
-            a, b = float(args[0]), float(args[1])
-        t = self.tm
-        t[0] *= a; t[1] *= a; t[2] *= b; t[3] *= b
+            raise TypeError("scale expects one or two scale factors")
+        self.tm[0] *= sx
+        self.tm[1] *= sx
+        self.tm[2] *= sy
+        self.tm[3] *= sy
 
-    def rotate(self, A):
-        c, s = math.cos(A), math.sin(A)
-        t = self.tm
-        t[0], t[2] = t[0] * c + t[2] * s, -t[0] * s + t[2] * c
-        t[1], t[3] = t[1] * c + t[3] * s, -t[1] * s + t[3] * c
+    def rotate(self, angle):
+        sine, cosine = math.sin(angle), math.cos(angle)
+        a, b, c, d = self.tm[:4]
+        self.tm[:4] = [
+            a * cosine + c * sine,
+            b * cosine + d * sine,
+            c * cosine - a * sine,
+            d * cosine - b * sine,
+        ]

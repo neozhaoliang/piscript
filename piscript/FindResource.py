@@ -1,65 +1,55 @@
-"""TeX resource finder with caching.
+"""Cached lookups for TeX metrics, virtual fonts, fonts and map files."""
 
-Looks up VF, TFM, Type1 fonts, encodings, and font maps
-via matplotlib's kpathsea-backed find_tex_file.
-"""
-
-from piscript import FontMap
-from piscript import Type1
-from piscript.kpsewhich import find, VF_TYPE, TFM_TYPE, TYPE1_TYPE, ENC_TYPE, FONTMAP_TYPE
+from piscript import FontMap, Type1
+from piscript.kpsewhich import (
+    ENC_TYPE, FONTMAP_TYPE, TFM_TYPE, TYPE1_TYPE, VF_TYPE, find,
+)
 
 vfPathCache = {}
-
-
-def getVF(fn):
-    path = vfPathCache.get(fn)
-    if not path:
-        path = vfPathCache[fn] = find(fn, VF_TYPE)
-    return path
-
-
 tfmPathCache = {}
-
-
-def getTFM(fn):
-    path = tfmPathCache.get(fn)
-    if not path:
-        path = tfmPathCache[fn] = find(fn, TFM_TYPE)
-    return path
-
-
-type1Cache = {}
-
-
-def type1FontForPath(fontPath):
-    t1font = type1Cache.get(fontPath)
-    if not t1font:
-        t1font = type1Cache[fontPath] = Type1.Type1Font(fontPath)
-    return t1font
-
-
 pfbPathCache = {}
-
-
-def getPFB(fn):
-    path = pfbPathCache.get(fn)
-    if not path:
-        path = pfbPathCache[fn] = find(fn, TYPE1_TYPE)
-    return path
-
-
-def getEncoding(e):
-    return find(e, ENC_TYPE)
-
-
+type1Cache = {}
 mapFileDict = {}
 
 
-def getMapFile(m):
-    mf = mapFileDict.get(m)
-    if not mf:
-        p = find(m, FONTMAP_TYPE) or find(m + ".map", FONTMAP_TYPE)
-        if not p:
-            return None
-        mf = mapFileDict[m] = FontMap.FontMap(p)
-    return mf
+def _path(cache, name, kind):
+    """Cache successful lookups only, allowing newly installed TeX files."""
+    if name not in cache:
+        path = find(name, kind)
+        if path is not None:
+            cache[name] = path
+        return path
+    return cache[name]
+
+
+def getVF(name):
+    return _path(vfPathCache, name, VF_TYPE)
+
+
+def getTFM(name):
+    return _path(tfmPathCache, name, TFM_TYPE)
+
+
+def getPFB(name):
+    return _path(pfbPathCache, name, TYPE1_TYPE)
+
+
+def getEncoding(name):
+    return find(name, ENC_TYPE)
+
+
+def type1FontForPath(fontPath):
+    if fontPath not in type1Cache:
+        type1Cache[fontPath] = Type1.Type1Font(fontPath)
+    return type1Cache[fontPath]
+
+
+def getMapFile(name):
+    if name in mapFileDict:
+        return mapFileDict[name]
+    path = find(name, FONTMAP_TYPE) or find(name + ".map", FONTMAP_TYPE)
+    if path is None:
+        return None
+    map_file = FontMap.FontMap(path)
+    mapFileDict[name] = map_file
+    return map_file

@@ -1,19 +1,20 @@
+"""Run TeX to create DVI-backed text inserts for PiScript."""
+
 import logging
-logger = logging.getLogger(__name__)
-"""TeX runner and environment configuration.
-
-Each Canvas has its own coordinate system + boundary and origin.
-TexInserts have special points called marks.
-"""
-
 import os
-import random
+from pathlib import Path
+import shlex
 import subprocess
+import tempfile
 
 from piscript.DviToDevice import DviToDevice
 
+logger = logging.getLogger(__name__)
+
 
 class TexRunner:
+    """Compile text in a TeX environment and render its DVI into a device."""
+
     def __init__(self, texenv, texString, device, save=None, pin=False):
         self.texenv = texenv
         self.device = device
@@ -24,78 +25,77 @@ class TexRunner:
 
     def run(self):
         if self.label is None:
-            n = int(1024 * random.random())
-            filename = "tmp" + str(n)
+            fd, path = tempfile.mkstemp(prefix="piscript-", suffix=".tex", dir=".")
+            os.close(fd)
+            self.filename = str(Path(path).with_suffix(""))
         else:
-            filename = self.label
-        self.filename = filename
-        contents = self.texenv.prefix
-        contents += "\n" + self.texenv.macros
-        contents += "\n" + self.string
-        contents += "\n" + self.texenv.postfix
+            self.filename = os.fspath(self.label)
 
-        if self.label is None:
-            self.tex(filename, contents)
-        else:
-            if os.path.exists(filename + ".tex") and os.path.exists(filename + ".dvi"):
-                with open(filename + ".tex", "r", encoding="utf-8") as texin:
-                    oldcontents = texin.read()
-                if contents != oldcontents:
-                    self.tex(filename, contents)
-            else:
-                self.tex(filename, contents)
-
-        dvitodevice = DviToDevice(self.filename, self.device)
-        dvitodevice.render()
-        dvitodevice.input.close()
-
-        if self.label is None:
-            self.cleanup()
+        tex_path = Path(self.filename + ".tex")
+        dvi_path = Path(self.filename + ".dvi")
+        contents = "\n".join((
+            self.texenv.prefix, self.texenv.macros,
+            self.string, self.texenv.postfix,
+        ))
+        try:
+            if (not tex_path.exists() or not dvi_path.exists()
+                    or tex_path.read_text(encoding="utf-8") != contents):
+                self.tex(self.filename, contents)
+            if not dvi_path.is_file():
+                raise RuntimeError(
+                    f"TeX did not produce a DVI file: {dvi_path}. "
+                    "Use a DVI-producing engine such as latex."
+                )
+            reader = DviToDevice(self.filename, self.device)
+            try:
+                reader.render()
+            finally:
+                reader.input.close()
+        finally:
+            if self.label is None:
+                self.cleanup()
 
     def cleanup(self):
-        filename = self.filename
+        """Remove temporary source/output, keeping saved documents."""
+        extensions = (".log", ".aux")
         if self.label is None:
-            for ext in [".tex", ".dvi"]:
-                path = filename + ext
-                try:
-                    if os.path.exists(path):
-                        os.remove(path)
-                except OSError:
-                    pass
-        for ext in [".log", ".aux"]:
-            path = filename + ext
+            extensions += (".tex", ".dvi")
+        for suffix in extensions:
             try:
-                if os.path.exists(path):
-                    os.remove(path)
-            except OSError:
-                pass
+                Path(self.filename + suffix).unlink(missing_ok=True)
+            except OSError as error:
+                logger.warning("Could not remove TeX file: %s", error)
 
     def tex(self, filename, contents):
-        with open(filename + ".tex", "w") as texout:
-            texout.write(contents)
-
-        cmd = self.texenv.command + " " + filename
-        logger.info(f"TEX cmd = {cmd}")
-
+        tex_path = Path(filename + ".tex")
+        tex_path.write_text(contents, encoding="utf-8")
+        command = shlex.split(self.texenv.command)
+        if not command:
+            raise ValueError("TeX executable is not configured")
+        args = [*command, "-interaction=nonstopmode", tex_path.name]
+        logger.debug("Running TeX: %s (in %s)", args, tex_path.parent)
         try:
             result = subprocess.run(
-                [self.texenv.command, "-interaction=nonstopmode", filename],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=60,
+                args, cwd=tex_path.parent, capture_output=True,
+                text=True, errors="replace", timeout=60, check=False,
             )
-            return result.returncode
-        except FileNotFoundError:
-            logger.error(f"TeX command '{self.texenv.command}' not found.")
-            logger.error("Please install TeX Live or MiKTeX.")
-            import sys
-            sys.exit(1)
-        except subprocess.TimeoutExpired:
-            logger.warning(f"TeX command timed out for {filename}.tex")
-            return 1
+        except FileNotFoundError as error:
+            raise RuntimeError(
+                f"TeX command '{command[0]}' not found; install TeX Live or MiKTeX"
+            ) from error
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError(f"TeX compilation timed out: {tex_path}") from error
+        if result.returncode:
+            raise RuntimeError(
+                f"TeX compilation failed for {tex_path} "
+                f"(exit code {result.returncode}):\n{result.stdout[-2000:]}"
+            )
+        return result.returncode
 
 
 class TexEnv:
+    """Mutable TeX preamble, postfix and compiler configuration."""
+
     def __init__(self, p, q, c):
         self.prefix = p
         self.macros = ""
@@ -103,18 +103,17 @@ class TexEnv:
         self.command = c
         self.save = False
 
-    def setprefix(self, s):
-        self.prefix = s
+    def setprefix(self, value):
+        self.prefix = value
 
-    def setmacros(self, s):
-        self.macros = s
+    def setmacros(self, value):
+        self.macros = value
 
-    def setpostfix(self, s):
-        self.postfix = s
+    def setpostfix(self, value):
+        self.postfix = value
 
-    def setcommand(self, s):
-        self.command = s
+    def setcommand(self, value):
+        self.command = value
 
-    def setsave(self, s):
-        """s is True/False only."""
-        self.save = s
+    def setsave(self, value):
+        self.save = bool(value)

@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pygraphviz"]
+dev = ["pytest>=8", "ruff>=0.6", "pygraphviz"]
 
 [project.urls]
 Repository = "https://github.com/neozhaoliang/piscript"
@@ -35,3 +35,10 @@ Repository = "https://github.com/neozhaoliang/piscript"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["piscript", "piscript.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100

@@ -18,7 +18,10 @@ class CoordinateSystem:
         if det == 0:
             raise ValueError("cannot invert a singular affine transform")
         return [
-            d / det, -b / det, -c / det, a / det,
+            d / det,
+            -b / det,
+            -c / det,
+            a / det,
             (c * ty - d * tx) / det,
             (b * tx - a * ty) / det,
         ]

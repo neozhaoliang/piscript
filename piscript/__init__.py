@@ -16,9 +16,16 @@ __version__ = "1.0.0"
 
 __all__ = [
     # Vector math
-    "Vector", "Vec2", "Vec3", "Vec4", "Vec5",
+    "Vector",
+    "Vec2",
+    "Vec3",
+    "Vec4",
+    "Vec5",
     # Core classes
-    "Canvas", "Graphics", "PiScript", "PiScript3d",
+    "Canvas",
+    "Graphics",
+    "PiScript",
+    "PiScript3d",
     # Module facades
     "PiModule",
 ]

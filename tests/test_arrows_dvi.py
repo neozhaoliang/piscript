@@ -3,7 +3,10 @@
 from types import SimpleNamespace
 
 from piscript.Arrows import (
-    _get_dims, _unpack_arrow_args, arrow, setarrowdims,
+    _get_dims,
+    _unpack_arrow_args,
+    arrow,
+    setarrowdims,
 )
 from piscript.Canvas import Canvas
 from piscript.DviReader import DviReader

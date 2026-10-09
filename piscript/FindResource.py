@@ -2,7 +2,12 @@
 
 from piscript import FontMap, Type1
 from piscript.kpsewhich import (
-    ENC_TYPE, FONTMAP_TYPE, TFM_TYPE, TYPE1_TYPE, VF_TYPE, find,
+    ENC_TYPE,
+    FONTMAP_TYPE,
+    TFM_TYPE,
+    TYPE1_TYPE,
+    VF_TYPE,
+    find,
 )
 
 vfPathCache = {}

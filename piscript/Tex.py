@@ -33,13 +33,20 @@ class TexRunner:
 
         tex_path = Path(self.filename + ".tex")
         dvi_path = Path(self.filename + ".dvi")
-        contents = "\n".join((
-            self.texenv.prefix, self.texenv.macros,
-            self.string, self.texenv.postfix,
-        ))
+        contents = "\n".join(
+            (
+                self.texenv.prefix,
+                self.texenv.macros,
+                self.string,
+                self.texenv.postfix,
+            )
+        )
         try:
-            if (not tex_path.exists() or not dvi_path.exists()
-                    or tex_path.read_text(encoding="utf-8") != contents):
+            if (
+                not tex_path.exists()
+                or not dvi_path.exists()
+                or tex_path.read_text(encoding="utf-8") != contents
+            ):
                 self.tex(self.filename, contents)
             if not dvi_path.is_file():
                 raise RuntimeError(
@@ -76,8 +83,13 @@ class TexRunner:
         logger.debug("Running TeX: %s (in %s)", args, tex_path.parent)
         try:
             result = subprocess.run(
-                args, cwd=tex_path.parent, capture_output=True,
-                text=True, errors="replace", timeout=60, check=False,
+                args,
+                cwd=tex_path.parent,
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=60,
+                check=False,
             )
         except FileNotFoundError as error:
             raise RuntimeError(

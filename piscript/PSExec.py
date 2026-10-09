@@ -12,6 +12,7 @@ from piscript.DeviceFont import FontTable
 from piscript.EncodingVector import glyph_set_for_chars
 from piscript.Cmd import *
 
+
 def float_to_hex(x):
     return f"{max(0, min(255, int(round(x * 255)))):02x}"
 
@@ -24,9 +25,7 @@ savestr = ""
 restorestr = ""
 
 beginepsf = (
-    "/BeginEPSF { "
-    + savestr
-    + " count /OpStackSize exch def /DictStackSize countdictstack def "
+    "/BeginEPSF { " + savestr + " count /OpStackSize exch def /DictStackSize countdictstack def "
     "0 setgray 0 setlinecap 1 setlinewidth 0 setlinejoin "
     "10 setmiterlimit [] 0 setdash newpath } bind def\n"
 )
@@ -39,7 +38,6 @@ endepsf = (
 
 
 class PSExec:
-
     def __init__(self):
         fd, self.storagePath = tempfile.mkstemp(prefix="piscript-", suffix=".pys")
         self.storagefile = os.fdopen(fd, "w", encoding="latin-1")
@@ -328,17 +326,10 @@ class PSExec:
         x0, y0, x1, y1 = ds[0], ds[1], ds[2], ds[3]
         C0, C1 = ds[7:10], ds[4:7]
         self.psadd("\nnewpath\n<<\n/ShadingType 2\n/ColorSpace /DeviceRGB\n")
-        self.psadd(
-            f"/Coords [ {Fstr.fstr(x1)} {Fstr.fstr(y1)} "
-            f"{Fstr.fstr(x0)} {Fstr.fstr(y0)} ]\n"
-        )
+        self.psadd(f"/Coords [ {Fstr.fstr(x1)} {Fstr.fstr(y1)} {Fstr.fstr(x0)} {Fstr.fstr(y0)} ]\n")
         self.psadd("/Function <<\n\t/FunctionType 2\n\t/Domain [ 0 1 ]\n")
-        self.psadd(
-            f"\t/C0 [ {Fstr.fstr(C0[0])} {Fstr.fstr(C0[1])} {Fstr.fstr(C0[2])} ]\n"
-        )
-        self.psadd(
-            f"\t/C1 [ {Fstr.fstr(C1[0])} {Fstr.fstr(C1[1])} {Fstr.fstr(C1[2])} ]\n"
-        )
+        self.psadd(f"\t/C0 [ {Fstr.fstr(C0[0])} {Fstr.fstr(C0[1])} {Fstr.fstr(C0[2])} ]\n")
+        self.psadd(f"\t/C1 [ {Fstr.fstr(C1[0])} {Fstr.fstr(C1[1])} {Fstr.fstr(C1[2])} ]\n")
         self.psadd("/N 1\n>>\n>>\nshfill\n\n")
 
     # ---- comment ----
@@ -401,11 +392,13 @@ class PSExec:
 
         for deviceFont in self.fontTable.deviceFonts.values():
             deviceFont.glyphsUsed = glyph_set_for_chars(
-                deviceFont.encodingVector(), deviceFont.charsUsed())
+                deviceFont.encodingVector(), deviceFont.charsUsed()
+            )
 
         for encodedFont in self.fontTable.encodedFonts.values():
             encodedGlyphsUsed = glyph_set_for_chars(
-                encodedFont.encodingVector(), encodedFont.charsUsed())
+                encodedFont.encodingVector(), encodedFont.charsUsed()
+            )
             encodedFont.deviceFont.glyphsUsed.update(encodedGlyphsUsed)
 
         encodings = set(
@@ -437,14 +430,10 @@ class PSExec:
                 continue
             fullEncodingName = encodingNames.get(f.encodingFile)
             if fullEncodingName is None:
-                outFile.write(
-                    f"/{f.uniqueName()} /{f.deviceFont.PSName}"
-                    f" findfont definefont pop\n"
-                )
+                outFile.write(f"/{f.uniqueName()} /{f.deviceFont.PSName} findfont definefont pop\n")
             else:
                 outFile.write(
-                    f"/{f.uniqueName()} /{f.deviceFont.PSName} "
-                    f"{fullEncodingName} ReEncodeFont\n"
+                    f"/{f.uniqueName()} /{f.deviceFont.PSName} {fullEncodingName} ReEncodeFont\n"
                 )
 
         outFile.flush()

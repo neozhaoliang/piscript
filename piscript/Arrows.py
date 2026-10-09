@@ -37,6 +37,7 @@ def _radian_arcn(ps, *args):
 #  Transformable mixin — eliminates duplicate translate/rotate in 5 classes
 # ---------------------------------------------------------------------------
 
+
 class _Transformable:
     """Mixin: provides translate() and rotate() by iterating self._points."""
 
@@ -47,7 +48,8 @@ class _Transformable:
             Arrow.Translate(getattr(self, name), p)
 
     def rotate(self, a):
-        c = math.cos(a); s = math.sin(a)
+        c = math.cos(a)
+        s = math.sin(a)
         for name in self._points:
             Arrow.Rotate(getattr(self, name), c, s)
 
@@ -56,8 +58,9 @@ class _Transformable:
 #  Arrow components
 # ---------------------------------------------------------------------------
 
+
 class PlainHead(_Transformable):
-    _points = ('p0', 'p1', 'p2', 'p3', 'p4')
+    _points = ("p0", "p1", "p2", "p3", "p4")
 
     def __init__(self, dims=None):
         self._dims = dims if dims is not None else _DEFAULT_DIMS
@@ -70,8 +73,11 @@ class PlainHead(_Transformable):
         self.p4 = self.p3 + [xB, -0.5 * (self._dims.hw - self._dims.sw)]
         self.length = xA - xB
 
-    def start(self):    return self.p0
-    def stop(self):     return self.p4
+    def start(self):
+        return self.p0
+
+    def stop(self):
+        return self.p4
 
     def beginpath(self, p):
         p.moveto(self.p0)
@@ -84,26 +90,30 @@ class PlainHead(_Transformable):
 
 
 class StraightShaft(_Transformable):
-    _points = ('p0', 'p1', 'p2', 'p3')
+    _points = ("p0", "p1", "p2", "p3")
 
     def __init__(self, L, dims=None):
         self._dims = dims if dims is not None else _DEFAULT_DIMS
         wd = 0.5 * self._dims.sw
         self.p0 = [0, -wd]
         self.p1 = [L, -wd]
-        self.p2 = [L,  wd]
-        self.p3 = [0,  wd]
+        self.p2 = [L, wd]
+        self.p3 = [0, wd]
 
-    def mkbottompath(self, p):  p.lineto(self.p1)
-    def mktoppath(self, p):     p.lineto(self.p3)
+    def mkbottompath(self, p):
+        p.lineto(self.p1)
+
+    def mktoppath(self, p):
+        p.lineto(self.p3)
 
 
 class ArcShaft(_Transformable):
-    _points = ('p0', 'p1', 'p2', 'p3', 'ctr')
+    _points = ("p0", "p1", "p2", "p3", "ctr")
 
     def __init__(self, A, r, dims=None):
         self._dims = dims if dims is not None else _DEFAULT_DIMS
-        c = math.cos(A); s = math.sin(A)
+        c = math.cos(A)
+        s = math.sin(A)
         e = 0.5 * self._dims.sw
         self.p0 = Vector([r + e, 0])
         self.p3 = Vector([r - e, 0])
@@ -125,7 +135,8 @@ class ArcShaft(_Transformable):
     def mktoppath(self, p):
         _radian_arcn(p, self.ctr, self.r - 0.5 * self._dims.sw, self.A1, self.A0)
 
-    def start(self):    return self.p0
+    def start(self):
+        return self.p0
 
 
 class ArcnShaft(ArcShaft):
@@ -140,19 +151,23 @@ class ArcnShaft(ArcShaft):
     def mktoppath(self, p):
         _radian_arc(p, self.ctr, self.r + 0.5 * self._dims.sw, self.A0, self.A1)
 
-    def start(self):    return self.p0
+    def start(self):
+        return self.p0
 
 
 class StubTail(_Transformable):
-    _points = ('p0', 'p1')
+    _points = ("p0", "p1")
 
     def __init__(self, dims=None):
         self._dims = dims if dims is not None else _DEFAULT_DIMS
         self.p0 = Vector([0, 0.5 * self._dims.sw])
         self.p1 = Vector([0, -0.5 * self._dims.sw])
 
-    def start(self):    return self.p0
-    def stop(self):     return self.p1
+    def start(self):
+        return self.p0
+
+    def stop(self):
+        return self.p1
 
     def mkpath(self, p):
         p0, p1 = self.p0, self.p1
@@ -171,7 +186,7 @@ class StubTail(_Transformable):
 
 
 class TexHead(_Transformable):
-    _points = ('P', 'Q')
+    _points = ("P", "Q")
 
     def __init__(self, A, B, R, dims=None):
         self._dims = dims if dims is not None else _DEFAULT_DIMS
@@ -187,13 +202,17 @@ class TexHead(_Transformable):
 
     def rotate(self, a):
         super().rotate(a)
-        c = math.cos(a); s = math.sin(a)
+        c = math.cos(a)
+        s = math.sin(a)
         Arrow.Rotate(self.axis, c, s)
 
     def mkpath(self, ps):
-        A = self.A; axis = self.axis; R = self.R
+        A = self.A
+        axis = self.axis
+        R = self.R
         O = [0.5 * (self.P[0] + self.Q[0]), 0.5 * (self.P[1] + self.Q[1])]
-        s = math.sin(A); c = math.cos(A)
+        s = math.sin(A)
+        c = math.cos(A)
         al = math.atan2(axis[1], axis[0])
         e = [R * s * axis[0], R * s * axis[1]]
         f = [-R * c * axis[1], R * c * axis[0]]
@@ -201,25 +220,31 @@ class TexHead(_Transformable):
         Ax = math.acos((R * c - self._dims.sw / 2) / (R + self.r / 2))
         T = math.pi / 2 + A + al + self.B
         _radian_arc(ps, C, R + self.r / 2, math.pi / 2 + Ax + al, T)
-        _radian_arc(ps, C[0] + R * math.cos(T), C[1] + R * math.sin(T),
-               self.r / 2, T, T + math.pi)
+        _radian_arc(ps, C[0] + R * math.cos(T), C[1] + R * math.sin(T), self.r / 2, T, T + math.pi)
         _radian_arcn(ps, C, R - self.r / 2, T, math.pi / 2 + A + al)
         dx = 0.5 * (self.r - self.rho) / s
-        _radian_arc(ps, O[0] + dx * axis[0], O[1] + dx * axis[1],
-               self.rho / 2, -math.pi / 2 + al + A, math.pi / 2 + al - A)
+        _radian_arc(
+            ps,
+            O[0] + dx * axis[0],
+            O[1] + dx * axis[1],
+            self.rho / 2,
+            -math.pi / 2 + al + A,
+            math.pi / 2 + al - A,
+        )
         C = [O[0] + e[0] + f[0], O[1] + e[1] + f[1]]
         T = -math.pi / 2 - A - self.B + al
         _radian_arcn(ps, C, R - self.r / 2, -math.pi / 2 - A + al, T)
-        _radian_arc(ps, C[0] + R * math.cos(T), C[1] + R * math.sin(T),
-               self.r / 2, T - math.pi, T)
+        _radian_arc(ps, C[0] + R * math.cos(T), C[1] + R * math.sin(T), self.r / 2, T - math.pi, T)
         _radian_arc(ps, C, R + self.r / 2, T, -math.pi / 2 - Ax + al)
 
     def start(self):
-        X = self.length; a = self.axis
+        X = self.length
+        a = self.axis
         return [self.P[0] - X * a[0], self.P[1] - X * a[1]]
 
     def stop(self):
-        X = self.length; a = self.axis
+        X = self.length
+        a = self.axis
         return [self.Q[0] - X * a[0], self.Q[1] - X * a[1]]
 
 
@@ -228,14 +253,16 @@ class QuadShaft:
         self._dims = dims if dims is not None else _DEFAULT_DIMS
         wd = 0.5 * self._dims.sw
         k = (len(P) - 1) // 2
-        bottom = []; top = []
+        bottom = []
+        top = []
         P0, P1 = P[0], P[1]
         P01 = [P1[0] - P0[0], P1[1] - P0[1]]
         d01 = math.hypot(P01[0], P01[1])
         u = [-P01[1] / d01, P01[0] / d01]
         self.p0 = [P0[0] - wd * u[0], P0[1] - wd * u[1]]
         self.p3 = [P0[0] + wd * u[0], P0[1] + wd * u[1]]
-        bottom.append(self.p0); top.append(self.p3)
+        bottom.append(self.p0)
+        top.append(self.p3)
         for i in range(k - 1):
             P2 = P[2 * i + 2]
             P12 = [P2[0] - P1[0], P2[1] - P1[1]]
@@ -243,7 +270,8 @@ class QuadShaft:
             v = [-P12[1] / d12, P12[0] / d12]
             dot = u[0] * v[0] + u[1] * v[1]
             det = dot * dot - 1
-            a = (wd / det) * (dot - 1); b = a
+            a = (wd / det) * (dot - 1)
+            b = a
             w = [a * u[0] + b * v[0], a * u[1] + b * v[1]]
             bottom.append([P1[0] - w[0], P1[1] - w[1]])
             top.append([P1[0] + w[0], P1[1] + w[1]])
@@ -262,21 +290,23 @@ class QuadShaft:
         t = 1 - s
         P012 = [P12[0] - P01[0], P12[1] - P01[1]]
         Q1 = [s * P0[0] + t * P1[0], s * P0[1] + t * P1[1]]
-        Q2 = [P2[0] - 2 * s * P12[0] + s * s * P012[0],
-              P2[1] - 2 * s * P12[1] + s * s * P012[1]]
+        Q2 = [P2[0] - 2 * s * P12[0] + s * s * P012[0], P2[1] - 2 * s * P12[1] + s * s * P012[1]]
         V = [2 * (P01[0] + t * P012[0]), 2 * (P01[1] + t * P012[1])]
         Dv = math.hypot(V[0], V[1])
         v = [-V[1] / Dv, V[0] / Dv]
         dot = u[0] * v[0] + u[1] * v[1]
         det = dot * dot - 1
-        a_val2 = (wd / det) * (dot - 1); b_val2 = a_val2
+        a_val2 = (wd / det) * (dot - 1)
+        b_val2 = a_val2
         w = [a_val2 * u[0] + b_val2 * v[0], a_val2 * u[1] + b_val2 * v[1]]
         p1b = [Q1[0] - w[0], Q1[1] - w[1]]
         q1 = [Q1[0] + w[0], Q1[1] + w[1]]
-        bottom.append(p1b); top.append(q1)
+        bottom.append(p1b)
+        top.append(q1)
         self.p1 = [Q2[0] - wd * v[0], Q2[1] - wd * v[1]]
         self.p2 = [Q2[0] + wd * v[0], Q2[1] + wd * v[1]]
-        bottom.append(self.p1); top.append(self.p2)
+        bottom.append(self.p1)
+        top.append(self.p2)
         self.bottom = bottom
         self.top = []
         n = len(top)
@@ -298,7 +328,8 @@ class QuadShaft:
             i += 2
 
     def rotate(self, a):
-        c = math.cos(a); s = math.sin(a)
+        c = math.cos(a)
+        s = math.sin(a)
         for pt in self.bottom + self.top:
             Arrow.Rotate(pt, c, s)
 
@@ -310,6 +341,7 @@ class QuadShaft:
 # ---------------------------------------------------------------------------
 #  Arrow (composite)
 # ---------------------------------------------------------------------------
+
 
 class Arrow:
     def __init__(self, head, shaft, tail):
@@ -371,6 +403,7 @@ class Arrow:
 #  Public API
 # ---------------------------------------------------------------------------
 
+
 def setarrowdims(ps, *args):
     """Set arrow dimensions on ps without affecting other drawing canvases."""
     if len(args) not in (1, 2, 4):
@@ -378,7 +411,11 @@ def setarrowdims(ps, *args):
     shaft = float(args[0])
     head = float(args[1]) if len(args) > 1 else 3.6 * shaft
     previous = _get_dims(ps)
-    angles = (float(args[2]) * ps.toRad, float(args[3]) * ps.toRad) if len(args) == 4 else (previous.A, previous.B)
+    angles = (
+        (float(args[2]) * ps.toRad, float(args[3]) * ps.toRad)
+        if len(args) == 4
+        else (previous.A, previous.B)
+    )
     if shaft <= 0 or head <= 0:
         raise ValueError("arrow widths must be positive")
     ps._arrow_dimensions = ArrowDimensions(shaft, head, *angles)
@@ -448,7 +485,8 @@ def arcarrow(ps, *args):
     S = head.length / r
     tail = StubTail(dims)
     dT = B - A
-    s = math.sin(dT); c = math.cos(dT)
+    s = math.sin(dT)
+    c = math.cos(dT)
     T = math.atan2(s - S * c, c + S * s)
     shaft = ArcShaft(T, r, dims)
     a = Arrow(head, shaft, tail)
@@ -469,7 +507,8 @@ def arcnarrow(ps, *args):
     S = head.length / r
     tail = StubTail(dims)
     dT = A - B
-    s = math.sin(dT); c = math.cos(dT)
+    s = math.sin(dT)
+    c = math.cos(dT)
     T = math.atan2(s - S * c, c + S * s)
     shaft = ArcnShaft(T, r, dims)
     a = Arrow(head, shaft, tail)

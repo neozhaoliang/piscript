@@ -9,7 +9,11 @@ StringInserts are strings with metric data.
 """
 
 from piscript.Graphics import Graphics
-from piscript.PSMatrix import concat as _mconcat, transform as _mtransform, rtransform as _mrtransform
+from piscript.PSMatrix import (
+    concat as _mconcat,
+    transform as _mtransform,
+    rtransform as _mrtransform,
+)
 from piscript.StringInsert import StringInsert
 import piscript.Fstr as Fstr
 import piscript.DeviceFont as DeviceFont
@@ -346,9 +350,12 @@ class Canvas(Graphics):
             P2 = [args[2], args[3]]
         s, t = 2.0 / 3, 1.0 / 3
         self.curveto(
-            t * P0[0] + s * P1[0], t * P0[1] + s * P1[1],
-            s * P1[0] + t * P2[0], s * P1[1] + t * P2[1],
-            P2[0], P2[1],
+            t * P0[0] + s * P1[0],
+            t * P0[1] + s * P1[1],
+            s * P1[0] + t * P2[0],
+            s * P1[1] + t * P2[1],
+            P2[0],
+            P2[1],
         )
 
     # ------------------------------------------------------------------

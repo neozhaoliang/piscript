@@ -21,10 +21,8 @@ def _makesimplearc(ps, x, y, radius, start, end):
     ce, se = math.cos(end), math.sin(end)
     p0 = (x + radius * cs, y + radius * ss)
     p3 = (x + radius * ce, y + radius * se)
-    p1 = (p0[0] - factor * radius * ss,
-          p0[1] + factor * radius * cs)
-    p2 = (p3[0] + factor * radius * se,
-          p3[1] - factor * radius * ce)
+    p1 = (p0[0] - factor * radius * ss, p0[1] + factor * radius * cs)
+    p2 = (p3[0] + factor * radius * se, p3[1] - factor * radius * ce)
     ps.curveto(p1, p2, p3)
 
 

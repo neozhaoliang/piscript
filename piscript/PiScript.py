@@ -14,7 +14,10 @@ from piscript.VectorUtils import Vector  # noqa: re-exported via PiModule
 
 
 import logging
+
 logger = logging.getLogger(__name__)
+
+
 class PageData:
     """Stores a snapshot of canvas commands and graphics stack level."""
 
@@ -79,8 +82,8 @@ class PiScript(Canvas):
     def _parse_args(self, args):
         """Parse init arguments: filename, extension, and bounding box."""
         ext = ".eps"
-        main_file = sys.modules.get('__main__', None)
-        pyfile = getattr(main_file, '__file__', 'output')
+        main_file = sys.modules.get("__main__", None)
+        pyfile = getattr(main_file, "__file__", "output")
 
         if isinstance(args[0], str):
             a = args[0]
@@ -237,7 +240,14 @@ class PiScript(Canvas):
                     location[0] += x
                     location[1] += y
 
-                    label = matrixstr + " [Bl] at " + str((72.27 / 72) * location[0]) + " " + str((72.27 / 72) * location[1]) + "\n"
+                    label = (
+                        matrixstr
+                        + " [Bl] at "
+                        + str((72.27 / 72) * location[0])
+                        + " "
+                        + str((72.27 / 72) * location[1])
+                        + "\n"
+                    )
                     labelfile.write("\\pinlabel* " + label)
         else:
             lab_path = self.filename + ".lab"
@@ -245,7 +255,7 @@ class PiScript(Canvas):
                 os.remove(lab_path)
 
         with open(self.filename + self.ext, "w", encoding="latin-1") as finalout:
-            self.device.finish(finalout, toEPS=(self.ext == '.eps'))
+            self.device.finish(finalout, toEPS=(self.ext == ".eps"))
         self._finished = True
 
     def baselevel(self):
@@ -324,8 +334,8 @@ class PiScript(Canvas):
     def _load_tex_config(self, cfgpathname):
         logger.info(f"importing {cfgpathname}")
         import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "piscript_tex_cfg", cfgpathname)
+
+        spec = importlib.util.spec_from_file_location("piscript_tex_cfg", cfgpathname)
         cfg = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cfg)
         self.texenv = cfg.getTexEnv()
@@ -337,26 +347,35 @@ class PiScript(Canvas):
 
     def stringinsert(self, s):
         from piscript.StringInsert import StringInsert
+
         return StringInsert(s)
 
     def texinsert(self, texstring, save=None, pin=False):
         import copy
-        if not hasattr(self, '_texinsert_cache'):
+
+        if not hasattr(self, "_texinsert_cache"):
             self._texinsert_cache = {}
         cache_key = (
-            texstring, save, pin, tuple(self.currentcolor()),
-            self.texenv.prefix, self.texenv.macros,
-            self.texenv.postfix, self.texenv.command,
+            texstring,
+            save,
+            pin,
+            tuple(self.currentcolor()),
+            self.texenv.prefix,
+            self.texenv.macros,
+            self.texenv.postfix,
+            self.texenv.command,
         )
         if cache_key in self._texinsert_cache:
             return copy.deepcopy(self._texinsert_cache[cache_key])
         if save:
             import os
+
             base = os.path.splitext(os.path.basename(self.filename))[0]
             save = f"tmp-{base}-{self.insertno}"
             self.insertno += 1
         tr = TexRunner(
-            self.texenv, texstring,
+            self.texenv,
+            texstring,
             PysCmdDevice(792, self.currentcolor()),
             save=save,
         )

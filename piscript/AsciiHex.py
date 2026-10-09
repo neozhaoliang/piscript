@@ -10,8 +10,7 @@ def asciihex_encode(data, errors="strict", lineLength=40):
     hex_str = binascii.hexlify(data).decode("ascii").upper()
     if lineLength and len(hex_str) > lineLength * 2:
         hex_str = "\n".join(
-            hex_str[i:i + lineLength * 2]
-            for i in range(0, len(hex_str), lineLength * 2)
+            hex_str[i : i + lineLength * 2] for i in range(0, len(hex_str), lineLength * 2)
         )
     return (hex_str, len(data))
 

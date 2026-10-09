@@ -1,5 +1,6 @@
 """Affine transform utilities for PostScript six-component matrices."""
 
+
 def _point(args):
     if len(args) == 1:
         return args[0]
@@ -11,15 +12,13 @@ def _point(args):
 def transform(tm, *args):
     """Transform a point, including translation."""
     x, y = _point(args)
-    return [tm[0] * x + tm[2] * y + tm[4],
-            tm[1] * x + tm[3] * y + tm[5]]
+    return [tm[0] * x + tm[2] * y + tm[4], tm[1] * x + tm[3] * y + tm[5]]
 
 
 def rtransform(tm, *args):
     """Transform a vector, ignoring translation."""
     x, y = _point(args)
-    return [tm[0] * x + tm[2] * y,
-            tm[1] * x + tm[3] * y]
+    return [tm[0] * x + tm[2] * y, tm[1] * x + tm[3] * y]
 
 
 def concat(a, b):

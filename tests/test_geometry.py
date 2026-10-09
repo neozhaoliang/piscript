@@ -15,7 +15,7 @@ def commands(canvas):
     cursor = 0
     while cursor < len(canvas.cmd):
         opcode = canvas.cmd[cursor]
-        yield opcode, canvas.cmd[cursor + 1:cursor + Skip[opcode]]
+        yield opcode, canvas.cmd[cursor + 1 : cursor + Skip[opcode]]
         cursor += Skip[opcode]
 
 

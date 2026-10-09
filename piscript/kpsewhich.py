@@ -19,6 +19,7 @@ def _find_matplotlib(name):
     """Use matplotlib's built-in kpathsea bindings (fast, in-process)."""
     try:
         from matplotlib.dviread import find_tex_file
+
         return find_tex_file(name)
     except (ImportError, FileNotFoundError, RuntimeError):
         return None
@@ -44,9 +45,7 @@ def _run_kpsewhich(name, kind=None):
         args.extend(["-format", kind])
     args.append(name)
     try:
-        result = subprocess.run(
-            args, capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(args, capture_output=True, text=True, timeout=10)
         if result.returncode == 0 and result.stdout.strip():
             path = result.stdout.strip()
             if os.path.isfile(path):

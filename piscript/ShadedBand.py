@@ -1,12 +1,13 @@
-
 from piscript.VectorUtils import *
 import piscript.VectorUtils as VectorUtils
 import math
 
 import logging
-logger = logging.getLogger(__name__)
-class ShadedBand:
 
+logger = logging.getLogger(__name__)
+
+
+class ShadedBand:
     def __init__(self, ps):
         self.ps = ps
         self.path = []
@@ -35,11 +36,14 @@ class ShadedBand:
         Q3 = Vector(self.ps.image(Q3))
         self.path.append([P1, Q1, P2, Q2, P3, Q3])
 
-    def closepath(self, ):
+    def closepath(
+        self,
+    ):
         self.closed = True
 
     def onethird(P, Q):
-        return([2*P[0]/3.0 + Q[0]/3.0, 2*P[1]/3.0 + Q[1]/3.0])
+        return [2 * P[0] / 3.0 + Q[0] / 3.0, 2 * P[1] / 3.0 + Q[1] / 3.0]
+
     onethird = staticmethod(onethird)
 
     def stroke(self, *args):
@@ -57,32 +61,42 @@ class ShadedBand:
         ps = self.ps
         ps.gsave()
         ps.revert()
-        if self.closed: n = 0
-        else: n = 1
+        if self.closed:
+            n = 0
+        else:
+            n = 1
         for i in range(n, len(p)):
-            P = p[i-1]
+            P = p[i - 1]
             Q = p[i]
             if len(Q) == 2:
                 # shfill a quadrilateral
                 # assemble data: x0 y0 x1 y1 = Coords + colors
                 data = [
-                    [[ P[0], C0 ],
-                    [ Q[0], C0 ],
-                    [ Q[1], C1 ]],
-                    [[ Q[1], C1 ],
-                    [ P[1], C1 ],
-                    [ P[0], C0 ]],
+                    [[P[0], C0], [Q[0], C0], [Q[1], C1]],
+                    [[Q[1], C1], [P[1], C1], [P[0], C0]],
                 ]
                 ps.shfill(data)
             elif len(Q) == 6:
                 # shfill a curvy quadrilateral
                 # assemble data: x0 y0 x1 y1 ... = Coords + colors
                 data = [
-                    P[0], self.onethird(P[0], P[1]), self.onethird(P[1], P[0]), 
-                        P[1], Q[1], Q[3], Q[5], 
-                            self.onethird(Q[5], Q[4]), self.onethird(Q[4], Q[5]), Q[4], Q[2], Q[0],
-                                C0, C1, C1, C0 
-                        ] 
+                    P[0],
+                    self.onethird(P[0], P[1]),
+                    self.onethird(P[1], P[0]),
+                    P[1],
+                    Q[1],
+                    Q[3],
+                    Q[5],
+                    self.onethird(Q[5], Q[4]),
+                    self.onethird(Q[4], Q[5]),
+                    Q[4],
+                    Q[2],
+                    Q[0],
+                    C0,
+                    C1,
+                    C1,
+                    C0,
+                ]
                 logger.debug(f"data = {data}")
                 logger.debug(f"length = {len(data)}")
                 ps.shcoons(data)
@@ -99,7 +113,3 @@ class ShadedBand:
             ps.lineto(p[i][0])
         ps.fill(C1)
         ps.grestore()
-
-
-
-

@@ -136,21 +136,18 @@ class Face:
 
 
 class SmoothConvexSurface:
-    def __init__(self, f):
-        self.f = f
+    def __init__(self, f, color=(1, 1, 1)):
+        self.f = list(f)
+        self.color = list(color)
 
     def paint(self, ps):
         e = ps.get_eye()
         l = ps.get_light()
         C = self.color
-        n = len(self.f)
-        MAX = 1024
-        while n > 0:
-            N = min(MAX, n)
-            n -= N
+        max_batch = 1024
+        for start in range(0, len(self.f), max_batch):
             data_source = []
-            for i in range(N):
-                F = self.f[i]
+            for F in self.f[start : start + max_batch]:
                 if F.is_visible(e):
                     t = F.p
                     a, b, c = [list(pt) + [1] for pt in t[:3]]
@@ -160,7 +157,8 @@ class SmoothConvexSurface:
                         u = ps.transform2d(v)
                         T.append([(u[0], u[1]), (sh * C[0], sh * C[1], sh * C[2])])
                     data_source.append(T)
-            ps.shfill(data_source)
+            if data_source:
+                ps.shfill(data_source)
 
 
 class ConvexSurface:
@@ -391,8 +389,10 @@ class PiScript3d(PiScript):
         self.curveto(x1, y1, x2, y2, p3h[0] / w, p3h[1] / w)
 
     def closepath3d(self):
-        v = np.dot(self.gstack3d[-1][0], self.lm)
-        self.cpt = v
+        # lm is already in transformed coordinates.
+        if self.lm is None:
+            raise ValueError("no active 3D subpath")
+        self.cpt = self.lm.copy()
         self.closepath()
 
     # ------------------------------------------------------------------
@@ -424,9 +424,8 @@ class PiScript3d(PiScript):
         self.curveto3d(P1, P2, P3)
 
     def Xclosepath(self):
-        if self.lm:
-            v = np.dot(self.gstack3d[-1][0], self.lm)
-            self.cpt = v
+        if self.lm is not None:
+            self.cpt = self.lm.copy()
         PiScript.closepath(self)
 
     def Xstroke(self, *args):

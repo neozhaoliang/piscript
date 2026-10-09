@@ -74,6 +74,7 @@ class PiScript(Canvas):
 
         self.lablist = []
         self.endblock = True
+        self._finished = False
 
     def _parse_args(self, args):
         """Parse init arguments: filename, extension, and bounding box."""
@@ -191,7 +192,21 @@ class PiScript(Canvas):
     def Transform(M, P):
         return (M[0] * P[0] + M[1] * P[1], M[2] * P[0] + M[3] * P[1])
 
+    def __enter__(self):
+        """Return the active renderer for context-managed drawings."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.finish()
+        elif hasattr(self.device, "abort"):
+            self.device.abort()
+        return False
+
     def finish(self):
+        """Finalize output once, allowing explicit finish inside a with-block."""
+        if self._finished:
+            return
         self.endblock = False
         self.endpage()
 
@@ -231,6 +246,7 @@ class PiScript(Canvas):
 
         with open(self.filename + self.ext, "w", encoding="latin-1") as finalout:
             self.device.finish(finalout, toEPS=(self.ext == '.eps'))
+        self._finished = True
 
     def baselevel(self):
         opd = self.pagestack[-2]

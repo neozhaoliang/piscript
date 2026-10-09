@@ -83,6 +83,14 @@ class PSExec:
             self.Embed_image,
         ]
 
+    def abort(self):
+        """Discard intermediate PostScript data on an aborted drawing."""
+        self.storagefile.close()
+        try:
+            os.unlink(self.storagePath)
+        except FileNotFoundError:
+            pass
+
     def setbbox(self, bbox):
         self.bbox = bbox
 

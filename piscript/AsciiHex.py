@@ -20,12 +20,19 @@ def asciihex_decode(data, errors="strict"):
     """Decode ASCIIHex data to bytes. Returns (decoded_bytes, bytes_consumed)."""
     if isinstance(data, str):
         data = data.encode("ascii")
-    # Filter out whitespace and stop at '>'
+    # PostScript ASCIIHex allows whitespace and an optional odd final nibble.
     filtered = bytearray()
-    for c in data:
-        if c in (0x20, 0x09, 0x0D, 0x0A, 0x0C, 0x0B):  # whitespace
-            continue
-        if c == 0x3E:  # '>'
+    consumed = len(data)
+    for index, byte in enumerate(data):
+        if byte == ord(">"):
+            consumed = index + 1
             break
-        filtered.append(c)
-    return (binascii.unhexlify(bytes(filtered)), len(data))
+        if byte not in b" \t\r\n\f\v":
+            filtered.append(byte)
+    if len(filtered) % 2:
+        filtered.append(ord("0"))
+    try:
+        decoded = binascii.unhexlify(filtered)
+    except binascii.Error as error:
+        raise ValueError("invalid PostScript ASCIIHex data") from error
+    return decoded, consumed

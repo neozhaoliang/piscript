@@ -21,6 +21,8 @@ def bernstein(y, t):
 
     bernstein([y0, y1, ..., yn], t) computes sum_i y_i * B_{i,n}(t).
     """
+    if not y:
+        raise ValueError("Bernstein evaluation needs at least one control point")
     n = len(y) - 1
     if not isinstance(y[0], (list, tuple, np.ndarray)):
         # Scalar control points

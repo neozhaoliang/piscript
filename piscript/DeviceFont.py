@@ -10,12 +10,14 @@ from piscript.TexFontNameDict import *
 from piscript.CMRFontDict import cmrfontdict
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 #  DeviceFont base
 # ---------------------------------------------------------------------------
+
 
 class DeviceFont:
     def __init__(self, fontPath, embed=True, extract=True):
@@ -51,6 +53,7 @@ class DeviceFont:
 #  Font variants
 # ---------------------------------------------------------------------------
 
+
 class PFBFont(DeviceFont):
     """A font backed by a .pfb file on disk."""
 
@@ -84,9 +87,19 @@ class Base13Font(DeviceFont):
 
 
 Base13Names = [
-    "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
-    "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
-    "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", "Symbol",
+    "Times-Roman",
+    "Times-Bold",
+    "Times-Italic",
+    "Times-BoldItalic",
+    "Helvetica",
+    "Helvetica-Bold",
+    "Helvetica-Oblique",
+    "Helvetica-BoldOblique",
+    "Courier",
+    "Courier-Bold",
+    "Courier-Oblique",
+    "Courier-BoldOblique",
+    "Symbol",
 ]
 
 Base13Fonts = {k: Base13Font(k) for k in Base13Names}
@@ -95,7 +108,7 @@ Base13Fonts = {k: Base13Font(k) for k in Base13Names}
 class Font:
     """Associates a DeviceFont with a TeX name and point size."""
 
-    __slots__ = ('font', 'name', 'size')
+    __slots__ = ("font", "name", "size")
 
     def __init__(self, font, name, size):
         self.font = font
@@ -154,14 +167,17 @@ class DeviceFontWithEncoding(DeviceFont):
 #  FontTable
 # ---------------------------------------------------------------------------
 
+
 class FontTable:
     def __init__(self):
         self.deviceFonts = {}
         self.encodedFonts = {}
         self.mapNameToPSName = {}
-        self.mapFile = (FindResource.getMapFile("dvipdfm")
-                        or FindResource.getMapFile("pdftex")
-                        or FindResource.getMapFile("psfonts"))
+        self.mapFile = (
+            FindResource.getMapFile("dvipdfm")
+            or FindResource.getMapFile("pdftex")
+            or FindResource.getMapFile("psfonts")
+        )
         self.aliasdict = aliasdict
         self.texfontname = texfontname
 
@@ -189,7 +205,7 @@ class FontTable:
         return font
 
     def findFont(self, fontName):
-        if fontName[0] == '/':
+        if fontName[0] == "/":
             fontName = fontName[1:]
         originalName = fontName
 
@@ -198,9 +214,11 @@ class FontTable:
         if fontName in texfontname:
             fontName = self.texfontname[fontName]
 
-        f = (self._findLoadedFont(fontName)
-             or self._findTeXFontCore(fontName)
-             or self._findSystemFontCore(fontName))
+        f = (
+            self._findLoadedFont(fontName)
+            or self._findTeXFontCore(fontName)
+            or self._findSystemFontCore(fontName)
+        )
         if f:
             return f
 
@@ -249,7 +267,8 @@ class FontTable:
     def _makeEncodedFont(self, texFontName, mapEntry):
         psName = mapEntry.PSName
         font = DeviceFontWithEncoding(
-            self.deviceFonts[psName], mapEntry.encoding, opts=mapEntry.opts)
+            self.deviceFonts[psName], mapEntry.encoding, opts=mapEntry.opts
+        )
         self.encodedFonts[texFontName] = font
         return font
 
@@ -268,5 +287,5 @@ class FontTable:
                     self.deviceFonts[psName] = newFont.deviceFont
                 self.encodedFonts[k] = newFont
         self.mapNameToPSName.update(
-            {k: v for k, v in fontTable.mapNameToPSName.items()
-             if k not in self.mapNameToPSName})
+            {k: v for k, v in fontTable.mapNameToPSName.items() if k not in self.mapNameToPSName}
+        )

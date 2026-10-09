@@ -11,12 +11,14 @@ import piscript.Bezier as Bezier
 import math
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 #  Argument helpers
 # ---------------------------------------------------------------------------
+
 
 def _unpack_xyz(args):
     """(x, y, z) or ([x, y, z]) → (x, y, z)."""
@@ -34,15 +36,17 @@ def _is_2d(args):
 #  Face
 # ---------------------------------------------------------------------------
 
+
 class Face:
     def __init__(self, *args):
         if isinstance(args[0], Face):
             f = args[0]
-            self.p = f.p
-            self.fill = f.fill
-            self.nf = f.nf
+            self.p = [list(point) for point in f.p]
+            self.fill = list(f.fill)
+            self.nf = list(f.nf)
             self.shading = f.shading
-            self.stroke = f.stroke
+            self.stroke = list(f.stroke)
+            self.extras = list(f.extras)
             return
         if len(args) == 1:
             self.p = args[0]
@@ -55,14 +59,21 @@ class Face:
         self.shading = PiScript3d.default_shading
         self.extras = list(args[2:])
 
-    def setshading(self, y):    self.shading = y
+    def setshading(self, y):
+        self.shading = y
 
     def shade_factor(self, s):
         return Bezier.bernstein(self.shading, (s + 1) / 2.0)
 
-    def setnormal(self, nf):    self.f[1] = nf
-    def setfill(self, c):       self.fill = c
-    def setstroke(self, c):     self.stroke = c
+    def setnormal(self, nf):
+        """Replace the plane equation of this face."""
+        self.nf = list(nf)
+
+    def setfill(self, c):
+        self.fill = c
+
+    def setstroke(self, c):
+        self.stroke = c
 
     def reversed(self):
         f = Face(self)
@@ -93,7 +104,8 @@ class Face:
         for pt in p:
             ps.lineto3d(pt[0], pt[1], pt[2])
         ps.closepath3d()
-        L = ps.get_light(); nf = self.nf
+        L = ps.get_light()
+        nf = self.nf
         s = L[0] * nf[0] + L[1] * nf[1] + L[2] * nf[2]
         s = Bezier.bernstein(self.shading, (s + 1.0) / 2)
         ps.fill(s * c[0], s * c[1], s * c[2])
@@ -108,7 +120,9 @@ class Face:
         b = [w[0] - v[0], w[1] - v[1], w[2] - v[2]]
         c = VU.x(a, b)
         r = math.hypot(c[0], c[1], c[2])
-        c[0] /= r; c[1] /= r; c[2] /= r
+        c[0] /= r
+        c[1] /= r
+        c[2] /= r
         return [c[0], c[1], c[2], -(c[0] * u[0] + c[1] * u[1] + c[2] * u[2])]
 
     @staticmethod
@@ -120,22 +134,20 @@ class Face:
 #  Surfaces
 # ---------------------------------------------------------------------------
 
+
 class SmoothConvexSurface:
-    def __init__(self, f):
-        self.f = f
+    def __init__(self, f, color=(1, 1, 1)):
+        self.f = list(f)
+        self.color = list(color)
 
     def paint(self, ps):
         e = ps.get_eye()
         l = ps.get_light()
         C = self.color
-        n = len(self.f)
-        MAX = 1024
-        while n > 0:
-            N = min(MAX, n)
-            n -= N
+        max_batch = 1024
+        for start in range(0, len(self.f), max_batch):
             data_source = []
-            for i in range(N):
-                F = self.f[i]
+            for F in self.f[start : start + max_batch]:
                 if F.is_visible(e):
                     t = F.p
                     a, b, c = [list(pt) + [1] for pt in t[:3]]
@@ -143,10 +155,10 @@ class SmoothConvexSurface:
                     for v in (a, b, c):
                         sh = F.shade_factor(VU.mul(l, v))
                         u = ps.transform2d(v)
-                        T.append([(u[0], u[1]),
-                                   (sh * C[0], sh * C[1], sh * C[2])])
+                        T.append([(u[0], u[1]), (sh * C[0], sh * C[1], sh * C[2])])
                     data_source.append(T)
-            ps.shfill(data_source)
+            if data_source:
+                ps.shfill(data_source)
 
 
 class ConvexSurface:
@@ -186,16 +198,18 @@ class ConvexSurface:
 #  PiScript3d
 # ---------------------------------------------------------------------------
 
-class PiScript3d(PiScript):
 
+class PiScript3d(PiScript):
     default_shading = [0.4, 0.6, 0.9, 1.0]
 
     def __init__(self, device, *args):
         PiScript.__init__(self, device, *args)
         self.gstack3d = [
-            [[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]]]
+            [
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]],
+            ]
         ]
         L = Vector([-0.5, 1, 0.5, 0])
         self.light = L.normalized()
@@ -259,9 +273,13 @@ class PiScript3d(PiScript):
         t = self.gstack3d[-1][0]
         T = self.gstack3d[-1][1]
         for i in range(4):
-            t[i][0] *= x; t[i][1] *= y; t[i][2] *= z
+            t[i][0] *= x
+            t[i][1] *= y
+            t[i][2] *= z
         for j in range(4):
-            T[0][j] /= x * 1.0; T[1][j] /= y * 1.0; T[2][j] /= z * 1.0
+            T[0][j] /= x * 1.0
+            T[1][j] /= y * 1.0
+            T[2][j] /= z * 1.0
 
     def translate3d(self, *args):
         x, y, z = _unpack_xyz(args)
@@ -277,14 +295,12 @@ class PiScript3d(PiScript):
     def gfxtransform3d(self, m):
         t = self.gstack3d[-1][0]
         T = self.gstack3d[-1][1]
-        p = [[sum(t[i][j] * m[j][k] for j in range(3)) for k in range(3)]
-             for i in range(4)]
+        p = [[sum(t[i][j] * m[j][k] for j in range(3)) for k in range(3)] for i in range(4)]
         for i in range(4):
             for k in range(3):
                 t[i][k] = p[i][k]
         M = np.linalg.inv(np.array(m))
-        p = [[sum(M[j][i] * T[j][k] for j in range(3)) for k in range(4)]
-             for i in range(3)]
+        p = [[sum(M[j][i] * T[j][k] for j in range(3)) for k in range(4)] for i in range(3)]
         for i in range(3):
             T[i] = p[i]
 
@@ -292,28 +308,25 @@ class PiScript3d(PiScript):
         r = self.rotationmatrix(a, A)
         t = self.gstack3d[-1][0]
         T = self.gstack3d[-1][1]
-        p = [[sum(t[i][j] * r[j][k] for j in range(3)) for k in range(3)]
-             for i in range(4)]
+        p = [[sum(t[i][j] * r[j][k] for j in range(3)) for k in range(3)] for i in range(4)]
         for i in range(4):
             for k in range(3):
                 t[i][k] = p[i][k]
-        p = [[sum(r[j][i] * T[j][k] for j in range(3)) for k in range(4)]
-             for i in range(3)]
+        p = [[sum(r[j][i] * T[j][k] for j in range(3)) for k in range(4)] for i in range(3)]
         for i in range(3):
             T[i] = p[i]
 
     def project(self, F, P):
         fP = F[0] * P[0] + F[1] * P[1] + F[2] * P[2] + F[3] * P[3]
         Fm = [
-            [-fP + F[0] * P[0],  F[1] * P[0],  F[2] * P[0],  F[3] * P[0]],
-            [F[0] * P[1], -fP + F[1] * P[1], -F[2] * P[1],  F[3] * P[1]],
-            [F[0] * P[2],  F[1] * P[2], -fP + F[2] * P[2],  F[3] * P[2]],
-            [F[0] * P[3],  F[1] * P[3],  F[2] * P[3], -fP + F[3] * P[3]],
+            [-fP + F[0] * P[0], F[1] * P[0], F[2] * P[0], F[3] * P[0]],
+            [F[0] * P[1], -fP + F[1] * P[1], -F[2] * P[1], F[3] * P[1]],
+            [F[0] * P[2], F[1] * P[2], -fP + F[2] * P[2], F[3] * P[2]],
+            [F[0] * P[3], F[1] * P[3], F[2] * P[3], -fP + F[3] * P[3]],
         ]
         t = self.gstack3d[-1][0]
         self.gstack3d[-1][1] = None
-        p = [[sum(t[i][j] * Fm[j][k] for j in range(4)) for k in range(4)]
-             for i in range(4)]
+        p = [[sum(t[i][j] * Fm[j][k] for j in range(4)) for k in range(4)] for i in range(4)]
         for i in range(4):
             for k in range(4):
                 t[i][k] = p[i][k]
@@ -329,32 +342,31 @@ class PiScript3d(PiScript):
         v = np.dot(self.gstack3d[-1][0], v)
         return self.display(v)
 
-    def _move3d(self, args, relative=False, cmd='moveto'):
+    def _move3d(self, args, relative=False, cmd="moveto"):
         """Unified moveto3d / rmoveto3d / lineto3d / rlineto3d."""
         a, b, c = _unpack_xyz(args)
         if relative:
             dv = np.dot(self.gstack3d[-1][0], [a, b, c, 0])
-            v = [self.cpt[0] + dv[0], self.cpt[1] + dv[1],
-                 self.cpt[2] + dv[2], 1]
+            v = [self.cpt[0] + dv[0], self.cpt[1] + dv[1], self.cpt[2] + dv[2], 1]
         else:
             v = np.dot(self.gstack3d[-1][0], [a, b, c, 1])
         self.cpt = v
-        if cmd == 'moveto':
+        if cmd == "moveto":
             self.lm = v
         V = self.display(v)
         getattr(PiScript, cmd)(self, V[0], V[1])
 
     def moveto3d(self, *args):
-        self._move3d(args, relative=False, cmd='moveto')
+        self._move3d(args, relative=False, cmd="moveto")
 
     def rmoveto3d(self, *args):
-        self._move3d(args, relative=True, cmd='moveto')
+        self._move3d(args, relative=True, cmd="moveto")
 
     def lineto3d(self, *args):
-        self._move3d(args, relative=False, cmd='lineto')
+        self._move3d(args, relative=False, cmd="lineto")
 
     def rlineto3d(self, *args):
-        self._move3d(args, relative=True, cmd='lineto')
+        self._move3d(args, relative=True, cmd="lineto")
 
     def curveto3d(self, P1, P2, P3):
         cpt = self.cpt
@@ -377,31 +389,33 @@ class PiScript3d(PiScript):
         self.curveto(x1, y1, x2, y2, p3h[0] / w, p3h[1] / w)
 
     def closepath3d(self):
-        v = np.dot(self.gstack3d[-1][0], self.lm)
-        self.cpt = v
+        # lm is already in transformed coordinates.
+        if self.lm is None:
+            raise ValueError("no active 3D subpath")
+        self.cpt = self.lm.copy()
         self.closepath()
 
     # ------------------------------------------------------------------
     #  X- variants  (2D/3D auto-dispatch via _Xmove3d)
     # ------------------------------------------------------------------
 
-    def _Xmove3d(self, args, relative=False, cmd='moveto'):
+    def _Xmove3d(self, args, relative=False, cmd="moveto"):
         """Xmoveto / Xrmoveto / Xlineto / Xrlineto3d — 2D fallback + 3D."""
         if _is_2d(args):
             return getattr(PiScript, cmd)(self, *args)
         self._move3d(args, relative=relative, cmd=cmd)
 
     def Xmoveto(self, *args):
-        self._Xmove3d(args, relative=False, cmd='moveto')
+        self._Xmove3d(args, relative=False, cmd="moveto")
 
     def Xrmoveto(self, *args):
-        self._Xmove3d(args, relative=True, cmd='moveto')
+        self._Xmove3d(args, relative=True, cmd="moveto")
 
     def Xlineto(self, *args):
-        self._Xmove3d(args, relative=False, cmd='lineto')
+        self._Xmove3d(args, relative=False, cmd="lineto")
 
     def Xrlineto3d(self, *args):
-        self._Xmove3d(args, relative=True, cmd='rlineto')
+        self._Xmove3d(args, relative=True, cmd="rlineto")
 
     def Xcurveto(self, *args):
         if len(args) == 2:
@@ -410,9 +424,8 @@ class PiScript3d(PiScript):
         self.curveto3d(P1, P2, P3)
 
     def Xclosepath(self):
-        if self.lm:
-            v = np.dot(self.gstack3d[-1][0], self.lm)
-            self.cpt = v
+        if self.lm is not None:
+            self.cpt = self.lm.copy()
         PiScript.closepath(self)
 
     def Xstroke(self, *args):
@@ -435,7 +448,9 @@ class PiScript3d(PiScript):
         e = self.light
         v = [sum(t[i][j] * e[j] for j in range(4)) for i in range(4)]
         r = math.hypot(v[0], v[1], v[2])
-        v[0] /= r; v[1] /= r; v[2] /= r
+        v[0] /= r
+        v[1] /= r
+        v[2] /= r
         return v
 
     def rotated(self, u, a, A):
@@ -446,13 +461,12 @@ class PiScript3d(PiScript):
         u1 = [u[0] - u0[0], u[1] - u0[1], u[2] - u0[2]]
         u2 = VU.x(n, u1)
         A *= self.toRad
-        c = math.cos(A); s = math.sin(A)
+        c = math.cos(A)
+        s = math.sin(A)
         return [u0[i] + c * u1[i] + s * u2[i] for i in range(3)]
 
     def rotationmatrix(self, axis, A):
         a = self.rotated([1, 0, 0], axis, A)
         b = self.rotated([0, 1, 0], axis, A)
         c = self.rotated([0, 0, 1], axis, A)
-        return [[a[0], b[0], c[0]],
-                [a[1], b[1], c[1]],
-                [a[2], b[2], c[2]]]
+        return [[a[0], b[0], c[0]], [a[1], b[1], c[1]], [a[2], b[2], c[2]]]

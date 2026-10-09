@@ -12,14 +12,29 @@ class DviDevice:
     def __init__(self, prefersChars=False):
         pass  # prefersChars was removed — kept for backward compat
 
-    def beginDocument(self, num, den, mag, reader):   pass
-    def endDocument(self, reader):                     pass
-    def beginPage(self, reader):                       pass
-    def endPage(self, reader):                         pass
-    def startFont(self, font, scaleFactor, reader):    pass
-    def putString(self, string, reader):               pass
-    def putRule(self, h, v, a, b):                     pass
-    def doSpecial(self, dvc, reader):                  pass
+    def beginDocument(self, num, den, mag, reader):
+        pass
+
+    def endDocument(self, reader):
+        pass
+
+    def beginPage(self, reader):
+        pass
+
+    def endPage(self, reader):
+        pass
+
+    def startFont(self, font, scaleFactor, reader):
+        pass
+
+    def putString(self, string, reader):
+        pass
+
+    def putRule(self, h, v, a, b):
+        pass
+
+    def doSpecial(self, dvc, reader):
+        pass
 
 
 class DviToDevice(DviReader):
@@ -78,8 +93,7 @@ class DviToDevice(DviReader):
         if self.currentFont.isVirtual:
             return
         pointSize = self.scaleFactor * self.currentFont.scaledSize
-        if (self.currentFont.fontName != self.lastSentFont
-                or pointSize != self.lastSentFontSize):
+        if self.currentFont.fontName != self.lastSentFont or pointSize != self.lastSentFontSize:
             self.lastSentFont = self.currentFont.fontName
             self.lastSentFontSize = pointSize
             self.device.startFont(self.currentFont, self.scaleFactor, self)
@@ -106,9 +120,9 @@ class DviToDevice(DviReader):
         self.device.endPage(self)
 
     def execSetRule(self, dvc):
-        self.device.putRule(self.h, self.v,
-                            dvc.a * self.scaleFactor,
-                            dvc.b * self.scaleFactor, self)
+        self.device.putRule(
+            self.h, self.v, dvc.a * self.scaleFactor, dvc.b * self.scaleFactor, self
+        )
         DviReader.execSetRule(self, dvc)
 
     execPutRule = execSetRule

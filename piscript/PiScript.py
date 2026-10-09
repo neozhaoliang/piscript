@@ -14,7 +14,10 @@ from piscript.VectorUtils import Vector  # noqa: re-exported via PiModule
 
 
 import logging
+
 logger = logging.getLogger(__name__)
+
+
 class PageData:
     """Stores a snapshot of canvas commands and graphics stack level."""
 
@@ -40,9 +43,7 @@ class PiScript(Canvas):
             args.pop()
 
         if not args:
-            logger.error("No arguments for init!")
-            logger.error("Exiting ... ")
-            sys.exit(1)
+            raise ValueError("init() requires a filename and/or dimensions")
 
         # Parse filename, extension, and bounding box from args
         filename, ext, llx, lly, urx, ury = self._parse_args(args)
@@ -76,12 +77,13 @@ class PiScript(Canvas):
 
         self.lablist = []
         self.endblock = True
+        self._finished = False
 
     def _parse_args(self, args):
         """Parse init arguments: filename, extension, and bounding box."""
         ext = ".eps"
-        main_file = sys.modules.get('__main__', None)
-        pyfile = getattr(main_file, '__file__', 'output')
+        main_file = sys.modules.get("__main__", None)
+        pyfile = getattr(main_file, "__file__", "output")
 
         if isinstance(args[0], str):
             a = args[0]
@@ -98,11 +100,7 @@ class PiScript(Canvas):
                 filename = a
             bbox_args = args[1:]
         else:
-            if not pyfile.endswith(".py"):
-                logger.error("Expecting source file with .py extension")
-                logger.error("Exiting ... ")
-                sys.exit(1)
-            filename = pyfile[:-3]
+            filename = pyfile[:-3] if pyfile.endswith(".py") else "output"
             # Support init(w, h, filename): extract any string from bbox args
             bbox_args = []
             for a in args:
@@ -121,8 +119,7 @@ class PiScript(Canvas):
         elif len(bbox_args) == 4:
             llx, lly, urx, ury = (int(x) for x in bbox_args)
         else:
-            logger.error("Expected 2 or 4 numeric args for dimensions")
-            sys.exit(1)
+            raise ValueError("expected (width, height) or (llx, lly, urx, ury)")
 
         return filename, ext, llx, lly, urx, ury
 
@@ -198,7 +195,21 @@ class PiScript(Canvas):
     def Transform(M, P):
         return (M[0] * P[0] + M[1] * P[1], M[2] * P[0] + M[3] * P[1])
 
+    def __enter__(self):
+        """Return the active renderer for context-managed drawings."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.finish()
+        elif hasattr(self.device, "abort"):
+            self.device.abort()
+        return False
+
     def finish(self):
+        """Finalize output once, allowing explicit finish inside a with-block."""
+        if self._finished:
+            return
         self.endblock = False
         self.endpage()
 
@@ -229,7 +240,14 @@ class PiScript(Canvas):
                     location[0] += x
                     location[1] += y
 
-                    label = matrixstr + " [Bl] at " + str((72.27 / 72) * location[0]) + " " + str((72.27 / 72) * location[1]) + "\n"
+                    label = (
+                        matrixstr
+                        + " [Bl] at "
+                        + str((72.27 / 72) * location[0])
+                        + " "
+                        + str((72.27 / 72) * location[1])
+                        + "\n"
+                    )
                     labelfile.write("\\pinlabel* " + label)
         else:
             lab_path = self.filename + ".lab"
@@ -237,7 +255,8 @@ class PiScript(Canvas):
                 os.remove(lab_path)
 
         with open(self.filename + self.ext, "w", encoding="latin-1") as finalout:
-            self.device.finish(finalout, toEPS=(self.ext == '.eps'))
+            self.device.finish(finalout, toEPS=(self.ext == ".eps"))
+        self._finished = True
 
     def baselevel(self):
         opd = self.pagestack[-2]
@@ -290,8 +309,7 @@ class PiScript(Canvas):
             if cfg is None:
                 logger.warning(f"TEX configuration {cfgfile} not found!")
                 logger.warning(f"checked: {os.path.join(os.getcwd(), cfgfile + '.py')}")
-                logger.error("Aborting due to missing TEX configuration")
-                sys.exit(1)
+                raise FileNotFoundError(f"TeX configuration not found: {cfgfile}")
         else:
             self.texenv = TexEnv(*args)
 
@@ -316,8 +334,8 @@ class PiScript(Canvas):
     def _load_tex_config(self, cfgpathname):
         logger.info(f"importing {cfgpathname}")
         import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "piscript_tex_cfg", cfgpathname)
+
+        spec = importlib.util.spec_from_file_location("piscript_tex_cfg", cfgpathname)
         cfg = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cfg)
         self.texenv = cfg.getTexEnv()
@@ -329,22 +347,35 @@ class PiScript(Canvas):
 
     def stringinsert(self, s):
         from piscript.StringInsert import StringInsert
+
         return StringInsert(s)
 
     def texinsert(self, texstring, save=None, pin=False):
         import copy
-        if not hasattr(self, '_texinsert_cache'):
+
+        if not hasattr(self, "_texinsert_cache"):
             self._texinsert_cache = {}
-        cache_key = (texstring, save is not None, pin)
+        cache_key = (
+            texstring,
+            save,
+            pin,
+            tuple(self.currentcolor()),
+            self.texenv.prefix,
+            self.texenv.macros,
+            self.texenv.postfix,
+            self.texenv.command,
+        )
         if cache_key in self._texinsert_cache:
             return copy.deepcopy(self._texinsert_cache[cache_key])
         if save:
             import os
+
             base = os.path.splitext(os.path.basename(self.filename))[0]
             save = f"tmp-{base}-{self.insertno}"
             self.insertno += 1
         tr = TexRunner(
-            self.texenv, texstring,
+            self.texenv,
+            texstring,
             PysCmdDevice(792, self.currentcolor()),
             save=save,
         )

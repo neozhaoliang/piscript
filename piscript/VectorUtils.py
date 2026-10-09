@@ -42,7 +42,10 @@ def cross(u, v):
 def angle_between(u, v):
     ru = length(u)
     rv = length(v)
-    return math.acos(mul(u, v) / (ru * rv))
+    if ru == 0 or rv == 0:
+        raise ValueError("angle is undefined for a zero-length vector")
+    cosine = mul(u, v) / (ru * rv)
+    return math.acos(max(-1.0, min(1.0, cosine)))
 
 
 def arg(u):
@@ -85,10 +88,7 @@ def reflected(f, u, v):
 
 def length(u):
     """Euclidean length of a vector."""
-    m = max(abs(x) for x in u)
-    if m == 0:
-        return 0
-    return m * math.sqrt(sum((x / m) ** 2 for x in u))
+    return math.hypot(*u)
 
 
 def evaluate(ell, P):
@@ -122,7 +122,6 @@ def linethrough(P, Q):
 
 def string(u):
     return "[" + ", ".join(str(x) for x in u) + "]"
-
 
 
 def rotate(u, A):
@@ -182,34 +181,42 @@ class _VectorBase(np.ndarray):
             try:
                 vals = np.asarray(x, dtype=float)
             except (TypeError, ValueError):
-                raise TypeError(
-                    f"Cannot create {cls.__name__} from {type(x).__name__}"
-                ) from None
+                raise TypeError(f"Cannot create {cls.__name__} from {type(x).__name__}") from None
             if vals.ndim == 0:
                 dim = cls.dim or 1
                 vals = np.full(dim, float(x))
         else:
             vals = np.asarray(args, dtype=float)
 
+        if vals.ndim != 1:
+            raise ValueError(f"{cls.__name__} expects a one-dimensional vector")
         if cls.dim and len(vals) != cls.dim:
-            raise ValueError(
-                f"{cls.__name__} requires exactly {cls.dim} elements,"
-                f" got {len(vals)}"
-            )
+            raise ValueError(f"{cls.__name__} requires exactly {cls.dim} elements, got {len(vals)}")
         return vals.view(cls)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        args = [
-            i.view(np.ndarray) if isinstance(i, _VectorBase) else i
-            for i in inputs
-        ]
-        result = getattr(ufunc, method)(*args, **kwargs)
-        if isinstance(result, np.ndarray) and result.ndim == 1:
-            out_type = type(self)
-            if out_type.dim and len(result) != out_type.dim:
-                out_type = Vector
-            return result.view(out_type)
-        return result
+        def unwrap(value):
+            return value.view(np.ndarray) if isinstance(value, _VectorBase) else value
+
+        original_out = kwargs.get("out")
+        if original_out is not None:
+            kwargs["out"] = tuple(unwrap(value) for value in original_out)
+        result = getattr(ufunc, method)(*(unwrap(item) for item in inputs), **kwargs)
+
+        if method == "at":
+            return None
+        if original_out is not None:
+            return original_out[0] if len(original_out) == 1 else original_out
+
+        def wrap(value):
+            if not isinstance(value, np.ndarray) or value.ndim != 1:
+                return value
+            vector_type = type(self)
+            if vector_type.dim and len(value) != vector_type.dim:
+                vector_type = Vector
+            return value.view(vector_type)
+
+        return tuple(map(wrap, result)) if isinstance(result, tuple) else wrap(result)
 
     def __array_finalize__(self, obj):
         if obj is None:
@@ -217,13 +224,11 @@ class _VectorBase(np.ndarray):
 
     def __complex__(self):
         if len(self) < 2:
-            raise ValueError(
-                f"need at least 2 elements for complex(), got {len(self)}"
-            )
+            raise ValueError(f"need at least 2 elements for complex(), got {len(self)}")
         return complex(self[0], self[1])
 
     def __repr__(self):
-        data = ', '.join(str(x) for x in self)
+        data = ", ".join(str(x) for x in self)
         return f"{type(self).__name__}({data})"
 
     def __str__(self):
@@ -259,6 +264,7 @@ class Vector(_VectorBase):
         Vector([1, 2, 3])   -- from a sequence
         Vector(1, 2, 3)     -- from varargs
     """
+
     pass
 
 
@@ -269,23 +275,27 @@ _VEC_REGISTRY = {}
 
 def _add_swizzles(cls):
     """Add swizzle properties to a fixed-dimension vector class."""
-    key_set = "xyzw"
-    valid_keys = key_set[:cls.dim]
+    key_set = "xyzwv"
+    valid_keys = key_set[: cls.dim]
 
     # Single-character accessors: v.x, v.y, v.z, v.w
     for idx, ch in enumerate(valid_keys):
+
         def make_prop(i):
             def getter(self):
                 return self[i]
+
             def setter(self, val):
                 self[i] = val
+
             return property(getter, setter)
+
         setattr(cls, ch, make_prop(idx))
 
     # Multi-character swizzle patterns (2-4 chars): v.xy, v.xyz, etc.
     for k in range(2, 5):
         for pattern in product(valid_keys, repeat=k):
-            prop_name = ''.join(pattern)
+            prop_name = "".join(pattern)
             indices = [valid_keys.index(ch) for ch in pattern]
             target_dim = len(pattern)
 
@@ -293,8 +303,10 @@ def _add_swizzles(cls):
                 def getter(self):
                     target_cls = _VEC_REGISTRY.get(td, Vector)
                     return self[idxs].view(target_cls)
+
                 def setter(self, val):
                     self[idxs] = val
+
                 return property(getter, setter)
 
             setattr(cls, prop_name, make_swizzle_prop(indices, target_dim))
@@ -302,7 +314,7 @@ def _add_swizzles(cls):
 
 # Create Vec2-Vec5 classes
 for _d in range(2, 6):
-    _VEC_REGISTRY[_d] = type(f'Vec{_d}', (Vector,), {'dim': _d})
+    _VEC_REGISTRY[_d] = type(f"Vec{_d}", (Vector,), {"dim": _d})
 
 # Add swizzles (all target classes already registered)
 for _d in range(2, 6):

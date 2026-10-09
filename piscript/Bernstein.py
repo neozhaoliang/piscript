@@ -21,17 +21,19 @@ def bernstein(y, t):
 
     bernstein([y0, y1, ..., yn], t) computes sum_i y_i * B_{i,n}(t).
     """
+    if not y:
+        raise ValueError("Bernstein evaluation needs at least one control point")
     n = len(y) - 1
     if not isinstance(y[0], (list, tuple, np.ndarray)):
         # Scalar control points
         total = 0.0
         for i, yi in enumerate(y):
-            total += yi * choose(n, i) * (t ** i) * ((1 - t) ** (n - i))
+            total += yi * choose(n, i) * (t**i) * ((1 - t) ** (n - i))
         return total
     # Vector control points
     result = [0.0] * len(y[0])
     for i, p in enumerate(y):
-        b = choose(n, i) * (t ** i) * ((1 - t) ** (n - i))
+        b = choose(n, i) * (t**i) * ((1 - t) ** (n - i))
         for j, pj in enumerate(p):
             result[j] += b * pj
     return result
@@ -39,7 +41,7 @@ def bernstein(y, t):
 
 def bernstein_basis(i, n, t):
     """Evaluate the i-th Bernstein basis polynomial of degree n at t."""
-    return choose(n, i) * (t ** i) * ((1 - t) ** (n - i))
+    return choose(n, i) * (t**i) * ((1 - t) ** (n - i))
 
 
 def interpolate(points, t_or_y, t=None):

@@ -4,6 +4,53 @@ A Python library for generating PostScript graphics with TeX-quality text render
 
 This is the Python 3 port of PiScript (originally written for Python 2). Below are all user-visible changes when migrating from the Python 2 version.
 
+## Quick start
+
+Install using Python 3.10 or newer:
+
+```bash
+python -m pip install .
+```
+
+Create EPS graphics without needing LaTeX for plain paths:
+
+```python
+from piscript.PiScript import PiScript
+from piscript.PSExec import PSExec
+from piscript.Arc import circle
+
+with PiScript(PSExec(), "circle.eps", 300, 200) as ps:
+    ps.newpath()
+    circle(ps, (150, 100), 60)
+    ps.setlinewidth(2)
+    ps.stroke()
+```
+
+The historical global API remains supported:
+
+```python
+from piscript.PiModule import init, newpath, moveto, lineto, stroke, finish
+
+init("line.eps", 300, 200)
+newpath()
+moveto(20, 20)
+lineto(280, 180)
+stroke()
+finish()
+```
+
+Run the test suite (TeX is not required for the unit tests):
+
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest -q
+```
+
+The package retains legacy capitalized module filenames and APIs for
+compatibility. Prefer renderer instances and standard snake-case helpers
+when writing new scripts.
+
+## Python 2 migration reference
 ## Installation
 
 ### Platform support
@@ -68,7 +115,7 @@ These functions existed in Python 2 `PiModule` but have been removed in Python 3
 | `texpath(*args)` | Removed — was a no-op stub |
 | `quadarrow(*args)` | Removed — was a no-op stub |
 | `arrowheadlength()` | Removed — was a no-op stub (returned None) |
-| `font(fn)` | Removed — was a Type1Font wrapper |
+| `font(fn)` | Retained as a compatibility wrapper for `Type1Font` |
 | `append(path)` | Not implemented |
 
 ### Deprecated wrappers

@@ -62,7 +62,6 @@ class VFFormatException(Exception):
 
 
 class VirtualFont:
-
     def __init__(self, vffile):
         import io
 
@@ -82,8 +81,7 @@ class VirtualFont:
         c2 = input.read(1)[0]
         if (c1 != PRE) | (c2 != VFID):
             raise VFFormatException(
-                "Invalid header for virtual font %s.\nExpecting %d %d, found %d %d."
-                % vffile,
+                "Invalid header for virtual font %s.\nExpecting %d %d, found %d %d." % vffile,
                 PRE,
                 VFID,
                 c1,
@@ -108,9 +106,7 @@ class VirtualFont:
             if (FNTDEF1 <= c) & (c <= FNTDEF4):
                 # In theory, all font defs occur first. Warn if this is not true.
                 if self.pcount != 0:
-                    logging.warning(
-                        "Found a FNTDEF after the first char packet in a virtual font"
-                    )
+                    logging.warning("Found a FNTDEF after the first char packet in a virtual font")
                 m = c - 242
                 k = knuth.getUnsigned(input, m)
                 c = knuth.getUnsigned(input, 4)
@@ -143,9 +139,7 @@ class VirtualFont:
             elif c == POST:
                 break
             else:
-                raise VFFormatException(
-                    "Unknown opcode %d in virtual font %s" % c, vfname
-                )
+                raise VFFormatException("Unknown opcode %d in virtual font %s" % c, vfname)
 
         input.close()
 

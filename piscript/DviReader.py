@@ -12,8 +12,10 @@ from piscript.DviFont import *
 import piscript.VirtualFont as VirtualFont
 import subprocess
 
+
 def Kstr(x):
-    return("%7.2f" % x)
+    return "%7.2f" % x
+
 
 """
 .dvi file reading:
@@ -100,6 +102,7 @@ POSTPOST = 249
 #  DviCommand base
 # ===========================================================================
 
+
 class DviCommand:
     """Base for all DVI command classes.
 
@@ -109,6 +112,7 @@ class DviCommand:
 
     execute() auto-dispatches to dvr.exec<ClassName>(self).
     """
+
     INDEX = None
 
     def __init__(self, dvr, i=None):
@@ -120,10 +124,10 @@ class DviCommand:
         pass
 
     def execute(self):
-        getattr(self.dvr, 'exec' + type(self).__name__)(self)
+        getattr(self.dvr, "exec" + type(self).__name__)(self)
 
     def __str__(self):
-        name = getattr(self, '_NAME', type(self).__name__)
+        name = getattr(self, "_NAME", type(self).__name__)
         return f"[{self.index}] {name}"
 
     def readable(self, dvr):
@@ -134,27 +138,33 @@ class DviCommand:
 #  Read-method factories
 # ===========================================================================
 
-def _uread(base, attr='c'):
+
+def _uread(base, attr="c"):
     """Return a read() that slurps an unsigned int.  Byte count = index - base."""
+
     def read(self, input):
         m = self.index - base
         setattr(self, attr, knuth.getUnsigned(input, m))
         self.length = m + 1
+
     return read
 
 
-def _sread(base, attr='b'):
+def _sread(base, attr="b"):
     """Return a read() that slurps a signed int.  Byte count = index - base."""
+
     def read(self, input):
         m = self.index - base
         setattr(self, attr, knuth.getInt(input, m))
         self.length = m + 1
+
     return read
 
 
 # ===========================================================================
 #  Factory
 # ===========================================================================
+
 
 def _make_cmd(name, **ns):
     """Create a DviCommand subclass.  ns provides method/attr overrides."""
@@ -167,66 +177,63 @@ def _make_cmd(name, **ns):
 
 # --- A1.  Fixed-index, no read, auto-execute (push/pop/eop) ---
 
-Push = _make_cmd('Push', INDEX=PUSH)
-Pop  = _make_cmd('Pop',  INDEX=POP)
-Eop  = _make_cmd('Eop',  INDEX=EOP)
+Push = _make_cmd("Push", INDEX=PUSH)
+Pop = _make_cmd("Pop", INDEX=POP)
+Eop = _make_cmd("Eop", INDEX=EOP)
 
 # --- A2.  W0 / X0 / Y0 / Z0 : no read, display dvr state, auto-execute ---
 
-W0 = _make_cmd('W0', INDEX=147,
-    __str__=lambda self: f"w0:{self.dvr.w}")
+W0 = _make_cmd("W0", INDEX=147, __str__=lambda self: f"w0:{self.dvr.w}")
 
-X0 = _make_cmd('X0', INDEX=152,
-    __str__=lambda self: f"x0:{self.dvr.x}")
+X0 = _make_cmd("X0", INDEX=152, __str__=lambda self: f"x0:{self.dvr.x}")
 
-Y0 = _make_cmd('Y0', INDEX=161,
-    __str__=lambda self: f"y0:{self.dvr.y}")
+Y0 = _make_cmd("Y0", INDEX=161, __str__=lambda self: f"y0:{self.dvr.y}")
 
-Z0 = _make_cmd('Z0', INDEX=166,
-    __str__=lambda self: f"z0:{self.dvr.z}")
+Z0 = _make_cmd("Z0", INDEX=166, __str__=lambda self: f"z0:{self.dvr.z}")
 
 # --- A3.  Read one unsigned int, auto-execute ---
 
-Set = _make_cmd('Set', _NAME='set', read=_uread(127, 'c'),
+Set = _make_cmd(
+    "Set",
+    _NAME="set",
+    read=_uread(127, "c"),
     __str__=lambda self: f"set {self.index - 127} {self.c}",
-    getCharIndex=lambda self: self.c)
+    getCharIndex=lambda self: self.c,
+)
 
-Put = _make_cmd('Put', _NAME='put', read=_uread(132, 'c'),
-    __str__=lambda self: f"put {self.index - 132}")
+Put = _make_cmd(
+    "Put", _NAME="put", read=_uread(132, "c"), __str__=lambda self: f"put {self.index - 132}"
+)
 
-Fnt = _make_cmd('Fnt', read=_uread(234, 'k'),
-    __str__=lambda self: f"fnt {self.k}")
+Fnt = _make_cmd("Fnt", read=_uread(234, "k"), __str__=lambda self: f"fnt {self.k}")
 
-FntNum = _make_cmd('FntNum',
-    __str__=lambda self: f"font num {self.index - 171}")
+FntNum = _make_cmd("FntNum", __str__=lambda self: f"font num {self.index - 171}")
 
 # --- A4.  Read one signed int, auto-execute ---
 
-Right = _make_cmd('Right', read=_sread(142, 'b'),
-    __str__=lambda self: f"right: {self.b}")
+Right = _make_cmd("Right", read=_sread(142, "b"), __str__=lambda self: f"right: {self.b}")
 
-Down  = _make_cmd('Down',  read=_sread(156, 'a'),
-    __str__=lambda self: f"down{self.index - 156}: {self.a}")
+Down = _make_cmd(
+    "Down", read=_sread(156, "a"), __str__=lambda self: f"down{self.index - 156}: {self.a}"
+)
 
-W     = _make_cmd('W',     read=_sread(147, 'b'),
-    __str__=lambda self: f"w{self.index - 147}:{self.b}")
+W = _make_cmd("W", read=_sread(147, "b"), __str__=lambda self: f"w{self.index - 147}:{self.b}")
 
-X     = _make_cmd('X',     read=_sread(152, 'b'),
-    __str__=lambda self: f"x{self.index - 152}:{self.b}")
+X = _make_cmd("X", read=_sread(152, "b"), __str__=lambda self: f"x{self.index - 152}:{self.b}")
 
-Y     = _make_cmd('Y',     read=_sread(161, 'a'),
-    __str__=lambda self: f"y{self.index - 161}:{self.a}")
+Y = _make_cmd("Y", read=_sread(161, "a"), __str__=lambda self: f"y{self.index - 161}:{self.a}")
 
-Z     = _make_cmd('Z',     read=_sread(166, 'a'),
-    __str__=lambda self: f"z{self.index - 166}:{self.a}")
+Z = _make_cmd("Z", read=_sread(166, "a"), __str__=lambda self: f"z{self.index - 166}:{self.a}")
 
 
 # ===========================================================================
 #  B. Hand-written (complex read / custom execute / special display)
 # ===========================================================================
 
+
 class SetChar(DviCommand):
     """Indices 0-127: the index itself is the character code."""
+
     _NAME = "set char"
 
     def __str__(self):
@@ -238,6 +245,7 @@ class SetChar(DviCommand):
 
 class SetRule(DviCommand):
     """Index 132: a[4] b[4] — set rule, changes h."""
+
     INDEX = SETRULE
     _NAME = "set rule"
 
@@ -252,6 +260,7 @@ class SetRule(DviCommand):
 
 class PutRule(DviCommand):
     """Index 137: a[4] b[4] — put rule, no position change."""
+
     INDEX = PUTRULE
 
     def __str__(self):
@@ -265,6 +274,7 @@ class PutRule(DviCommand):
 
 class Nop(DviCommand):
     """Index 138: does nothing."""
+
     INDEX = NOP
 
     def __str__(self):
@@ -276,6 +286,7 @@ class Nop(DviCommand):
 
 class Bop(DviCommand):
     """Index 139: begin page.  c[0..9][4] p[4]."""
+
     INDEX = BOP
 
     def read(self, input):
@@ -335,6 +346,7 @@ class FntDef(DviCommand):
 
 class PreAmble(DviCommand):
     """Index 247: preamble."""
+
     INDEX = PRE
 
     def __str__(self):
@@ -352,6 +364,7 @@ class PreAmble(DviCommand):
 
 class PostAmble(DviCommand):
     """Index 248: postamble."""
+
     INDEX = POST
 
     def __str__(self):
@@ -371,6 +384,7 @@ class PostAmble(DviCommand):
 
 class PostPostAmble(DviCommand):
     """Index 249: post-postamble."""
+
     INDEX = POSTPOST
 
     def __str__(self):
@@ -416,32 +430,32 @@ class VIllegal(DviCommand):
 #   has_index_arg = True if the class __init__ takes (dvr, index)
 
 _COMMAND_TABLE = [
-    (SetChar,       0,   128, True),
-    (Set,         128,   132, True),
-    (SetRule,    None,  None, False),
-    (Put,         133,   137, True),
-    (PutRule,    None,  None, False),
-    (Nop,        None,  None, False),
-    (Bop,        None,  None, False),
-    (Eop,        None,  None, False),
-    (Push,       None,  None, False),
-    (Pop,        None,  None, False),
-    (Right,       143,   147, True),
-    (W0,        None,  None, False),
-    (W,          148,   152, True),
-    (X0,        None,  None, False),
-    (X,          153,   157, True),
-    (Down,        157,   161, True),
-    (Y0,        None,  None, False),
-    (Y,          162,   166, True),
-    (Z0,        None,  None, False),
-    (Z,          167,   171, True),
-    (FntNum,      171,   235, True),
-    (Fnt,         235,   239, True),
-    (XXX,         239,   243, True),
-    (FntDef,      243,   247, True),
-    (PreAmble,   None,  None, False),
-    (PostAmble,  None,  None, False),
+    (SetChar, 0, 128, True),
+    (Set, 128, 132, True),
+    (SetRule, None, None, False),
+    (Put, 133, 137, True),
+    (PutRule, None, None, False),
+    (Nop, None, None, False),
+    (Bop, None, None, False),
+    (Eop, None, None, False),
+    (Push, None, None, False),
+    (Pop, None, None, False),
+    (Right, 143, 147, True),
+    (W0, None, None, False),
+    (W, 148, 152, True),
+    (X0, None, None, False),
+    (X, 153, 157, True),
+    (Down, 157, 161, True),
+    (Y0, None, None, False),
+    (Y, 162, 166, True),
+    (Z0, None, None, False),
+    (Z, 167, 171, True),
+    (FntNum, 171, 235, True),
+    (Fnt, 235, 239, True),
+    (XXX, 239, 243, True),
+    (FntDef, 243, 247, True),
+    (PreAmble, None, None, False),
+    (PostAmble, None, None, False),
     (PostPostAmble, None, None, False),
 ]
 
@@ -473,8 +487,8 @@ def _build_commands(dvr, table):
     The most complicated structures it deals with are DviFonts.
 """
 
-class DviReader:
 
+class DviReader:
     """
     The current state:
 
@@ -516,7 +530,7 @@ class DviReader:
         * InputStream input
 
         * DviCommand[] command
-"""
+    """
 
     def __init__(self, file):
         self.input = open(file + ".dvi", "rb")
@@ -552,32 +566,31 @@ class DviReader:
             n = c.p
         self.page = []
         for i in range(len(P)):
-            self.page.append(P[i-1])
+            self.page.append(P[i - 1])
         self.input.close()
         self.input = open(file + ".dvi", "rb")
 
     def getpre(self):
-        self.input.seek(0,0)
+        self.input.seek(0, 0)
         c = self.getCommand()
-        return(c)
+        return c
 
     def getpostpost(self):
         k = 1
-        while(True):
-            self.input.seek(-k,2)
+        while True:
+            self.input.seek(-k, 2)
             s = self.input.read(1)[0]
             if not s == 223:
                 break
             k += 1
-        self.input.seek(-k-5,2)
+        self.input.seek(-k - 5, 2)
         c = self.getCommand()
         return c
 
-    def getcommandat(self,n):
+    def getcommandat(self, n):
         self.input.seek(n, 0)
         c = self.getCommand()
         return c
-
 
     def readpage(self, n):
         pass
@@ -597,37 +610,38 @@ class DviReader:
         self.command = self.standard_command
 
     def render(self):
-        while (True):
+        while True:
             c = self.getCommand()
             c.execute()
             P = self.getCurrentPosition()
             print(c.readable(self))
             print("\t(" + Kstr(self.sptoadobe(P[0])) + ", " + Kstr(self.sptoadobe(P[1])) + ")")
-            if (c.index == self.EOF()):
+            if c.index == self.EOF():
                 break
 
     def getCommand(self):
-        while( (len(self.vFontStates) > 0) and (self.input.pos>=self.input.len) ):
+        while (len(self.vFontStates) > 0) and (self.input.pos >= self.input.len):
             self.popVFont()
         n = self.input.read(1)[0]
         self.command[n].read(self.input)
-        return(self.command[n])
+        return self.command[n]
 
     def getCurrentPosition(self):
-        return([self.h, self.v])
+        return [self.h, self.v]
 
     def EOF(self):
-        return(POST)
+        return POST
 
     def close(self):
         self.input.close()
 
     def sptoadobe(self, x):
-        return(x*(72/72.27)*self.mag/(1000.0*(1 << 16)))
+        return x * (72 / 72.27) * self.mag / (1000.0 * (1 << 16))
 
     def Str(x):
-        return("%3.4f" % x)
-    Str=staticmethod(Str)
+        return "%3.4f" % x
+
+    Str = staticmethod(Str)
 
     # adjust minimum width etc.
     def adjustbbox(self, c):
@@ -641,60 +655,67 @@ class DviReader:
             self.maxlevelSet = True
         else:
             level = loc[1]
-            if (level > self.maxlevel):
+            if level > self.maxlevel:
                 self.maxlevel = level
         if not self.minwdSet:
-            self.minwd = loc[0] - w*ss
+            self.minwd = loc[0] - w * ss
             self.minwdSet = True
         else:
-            wd = loc[0] - w*ss
-            if (wd < self.minwd):
+            wd = loc[0] - w * ss
+            if wd < self.minwd:
                 self.minwd = wd
         if not self.maxwdSet:
             self.maxwd = loc[0]
             self.maxwdSet = True
         else:
             wd = loc[0]
-            if (wd > self.maxwd):
+            if wd > self.maxwd:
                 self.maxwd = wd
         if not self.minhtSet:
-            self.minht = loc[1]-h*ss;
+            self.minht = loc[1] - h * ss
             self.minhtSet = True
         else:
-            ht = loc[1]-h*ss
-            if (ht < self.minht):
+            ht = loc[1] - h * ss
+            if ht < self.minht:
                 self.minht = ht
         if not self.maxhtSet:
-            self.maxht = loc[1]+d*ss
+            self.maxht = loc[1] + d * ss
             self.maxhtSet = True
         else:
-            ht = loc[1]+ss*d
-            if (ht > self.maxht):
+            ht = loc[1] + ss * d
+            if ht > self.maxht:
                 self.maxht = ht
 
-    def startFont( self, font ):
+    def startFont(self, font):
         self.currentFont = font
-        if( not self.currentFont.isUsed ):
+        if not self.currentFont.isUsed:
             self.currentFont.load()
 
-    def pushVFont( self, cindex):
+    def pushVFont(self, cindex):
         vFont = self.currentFont.vChars
-        self.dims.append([ self.h, self.v, self.w, self.x, self.y, self.z])
-        self.vFontStates.append([ self.dims, self.currentFont, self.scaleFactor, self.fontTable, self.input ])
-        self.w=0; self.x=0; self.y=0; self.z=0;
+        self.dims.append([self.h, self.v, self.w, self.x, self.y, self.z])
+        self.vFontStates.append(
+            [self.dims, self.currentFont, self.scaleFactor, self.fontTable, self.input]
+        )
+        self.w = 0
+        self.x = 0
+        self.y = 0
+        self.z = 0
         self.fontTable = vFont.fontTable
-        self.scaleFactor *= (self.currentFont.scaledSize*1.0/(1 << 20))
+        self.scaleFactor *= self.currentFont.scaledSize * 1.0 / (1 << 20)
         self.currentFont = vFont.defaultFont
-        if( self.currentFont != None ):
-            self.startFont( self.currentFont );
-        self.dims=[]
+        if self.currentFont != None:
+            self.startFont(self.currentFont)
+        self.dims = []
         self.input = StringIO(vFont.packets[cindex].dvi)
         self.command = self.vfont_command
 
-    def popVFont( self ):
+    def popVFont(self):
         self.input.close()
-        [ self.dims, self.currentFont, self.scaleFactor, self.fontTable, self.input ] = self.vFontStates.pop()
-        [ self.h, self.v, self.w, self.x, self.y, self.z ] = self.dims.pop()
+        [self.dims, self.currentFont, self.scaleFactor, self.fontTable, self.input] = (
+            self.vFontStates.pop()
+        )
+        [self.h, self.v, self.w, self.x, self.y, self.z] = self.dims.pop()
         self.command = self.standard_command
 
     # --- execution methods ---
@@ -702,20 +723,20 @@ class DviReader:
     def execSetChar(self, dvc):
         cw = self.currentFont.getCharWidth(dvc.index)
         ss = self.currentFont.scaledSize
-        dh = cw*ss*self.scaleFactor
+        dh = cw * ss * self.scaleFactor
         self.h += dh
-        if( self.currentFont.isVirtual and self.descendingVirtualFonts):
-            self.pushVFont( dvc.index )
+        if self.currentFont.isVirtual and self.descendingVirtualFonts:
+            self.pushVFont(dvc.index)
             self.h -= dh
 
     def execFntNum(self, dvc):
-        self.startFont( self.fontTable.get("f" + str(dvc.index-171) ) )
+        self.startFont(self.fontTable.get("f" + str(dvc.index - 171)))
 
     def execFnt(self, dvc):
-        self.startFont( self.fontTable.get("f" + str(dvc.k)) )
+        self.startFont(self.fontTable.get("f" + str(dvc.k)))
 
     def execSetRule(self, dvc):
-        self.h += dvc.b*self.scaleFactor
+        self.h += dvc.b * self.scaleFactor
 
     def execPutRule(self, dvc):
         return None
@@ -723,10 +744,10 @@ class DviReader:
     def execSet(self, dvc):
         cw = self.currentFont.getCharWidth(dvc.c)
         ss = self.currentFont.scaledSize
-        dh = cw*ss*self.scaleFactor
+        dh = cw * ss * self.scaleFactor
         self.h += dh
-        if( self.currentFont.isVirtual and self.descendingVirtualFonts):
-            self.pushVFont( dvc.c )
+        if self.currentFont.isVirtual and self.descendingVirtualFonts:
+            self.pushVFont(dvc.c)
             self.h -= dh
 
     def execPut(self, dvc):
@@ -745,7 +766,7 @@ class DviReader:
 
     def execFntDef(self, dvc):
         key = "f" + str(dvc.k)
-        if (self.fontTable.get(key) == None):
+        if self.fontTable.get(key) == None:
             tf = DviFont(dvc.fontfile, dvc.s, dvc.d, dvc.k)
             self.fontTable[key] = tf
 
@@ -753,7 +774,7 @@ class DviReader:
         return None
 
     def execPush(self, dvc):
-        V = [ self.h, self.v, self.w, self.x, self.y, self.z ]
+        V = [self.h, self.v, self.w, self.x, self.y, self.z]
         self.dims.append(V)
 
     def execPop(self, dvc):
@@ -763,44 +784,45 @@ class DviReader:
         self.num = dvc.num
         self.den = dvc.den
         self.mag = dvc.mag
-        self.ell = dvc.mag/1000.0
+        self.ell = dvc.mag / 1000.0
 
     def execXXX(self, dvc):
         s = dvc.x
         self.doSpecial(s)
 
     def execRight(self, dvc):
-        self.h += dvc.b*self.scaleFactor
+        self.h += dvc.b * self.scaleFactor
 
     def execDown(self, dvc):
-        self.v += dvc.a*self.scaleFactor
+        self.v += dvc.a * self.scaleFactor
 
     def execW0(self, dvc):
-        self.h += self.w*self.scaleFactor
+        # W was already scaled by execW; do not scale it twice.
+        self.h += self.w
 
     def execW(self, dvc):
-        self.w = dvc.b*self.scaleFactor
+        self.w = dvc.b * self.scaleFactor
         self.h += self.w
 
     def execX0(self, dvc):
         self.h += self.x
 
     def execX(self, dvc):
-        self.x = dvc.b*self.scaleFactor
+        self.x = dvc.b * self.scaleFactor
         self.h += self.x
 
     def execY0(self, dvc):
         self.v += self.y
 
     def execY(self, dvc):
-        self.y = dvc.a*self.scaleFactor
+        self.y = dvc.a * self.scaleFactor
         self.v += self.y
 
     def execZ0(self, dvc):
         self.v += self.z
 
     def execZ(self, dvc):
-        self.z = dvc.a*self.scaleFactor
+        self.z = dvc.a * self.scaleFactor
         self.v += self.z
 
     def execPostAmble(self, dvc):

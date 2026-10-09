@@ -9,7 +9,11 @@ StringInserts are strings with metric data.
 """
 
 from piscript.Graphics import Graphics
-from piscript.PSMatrix import concat as _mconcat, transform as _mtransform, rtransform as _mrtransform
+from piscript.PSMatrix import (
+    concat as _mconcat,
+    transform as _mtransform,
+    rtransform as _mrtransform,
+)
 from piscript.StringInsert import StringInsert
 import piscript.Fstr as Fstr
 import piscript.DeviceFont as DeviceFont
@@ -72,16 +76,24 @@ class Canvas(Graphics):
         c.comment(" --- clone --- ")
         c.fontTable = self.fontTable
         c.cmd = list(self.cmd)
-        c.m = self.m
+        c.m = list(self.m)
         c.setlinewidth(self.currentlinewidth())
         c.setlinecap(self.currentlinecap())
         c.setlinejoin(self.currentlinejoin())
         d = self.currentdash()
         c.setdash(d[0], d[1])
+        c.setmiterlimit(self.currentmiterlimit())
+        c.setcolor(self.currentcolor())
         return c
 
     def setmode(self, mode):
-        pass  # kept for backward compatibility
+        """Select radians (0) or degrees (1)."""
+        if mode == 0:
+            self.setrad()
+        elif mode == 1:
+            self.setdeg()
+        else:
+            raise ValueError("mode must be 0 (radians) or 1 (degrees)")
 
     def ctm(self):
         return self.cgs().tm
@@ -257,7 +269,7 @@ class Canvas(Graphics):
             M = _mconcat(self.m, self.ctm())
             self._emit(SHOW, s, M)
         else:
-            print("\n--- Invalid argument in show! ---\n")
+            raise TypeError("show() expects text or character codes")
 
     # ------------------------------------------------------------------
     #  embedding  (EMBED)
@@ -272,6 +284,8 @@ class Canvas(Graphics):
             P = args[0]
         elif len(args) == 2:
             P = (args[0], args[1])
+        else:
+            raise TypeError("place() expects a canvas and optional x, y")
         self.fontTable.merge(canvas.fontTable)
         v = self.cgs().transform(P)
         c = canvas.clone()
@@ -316,7 +330,6 @@ class Canvas(Graphics):
         if not P:
             self.nocurrentpoint()
         V = self._unpack_point(args)
-        self.setrcurrentpoint(V)
         self.moveto(P[0] + V[0], P[1] + V[1])
 
     def rlineto(self, *args):
@@ -324,7 +337,6 @@ class Canvas(Graphics):
         if not P:
             self.nocurrentpoint()
         V = self._unpack_point(args)
-        self.setrcurrentpoint(V)
         self.lineto(P[0] + V[0], P[1] + V[1])
 
     def quadto(self, *args):
@@ -338,9 +350,12 @@ class Canvas(Graphics):
             P2 = [args[2], args[3]]
         s, t = 2.0 / 3, 1.0 / 3
         self.curveto(
-            t * P0[0] + s * P1[0], t * P0[1] + s * P1[1],
-            s * P1[0] + t * P2[0], s * P1[1] + t * P2[1],
-            P2[0], P2[1],
+            t * P0[0] + s * P1[0],
+            t * P0[1] + s * P1[1],
+            s * P1[0] + t * P2[0],
+            s * P1[1] + t * P2[1],
+            P2[0],
+            P2[1],
         )
 
     # ------------------------------------------------------------------

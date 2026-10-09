@@ -1,113 +1,76 @@
-"""Arc and circle drawing utilities.
-
-arc()  — counterclockwise arc
-arcn() — clockwise arc
-circle() — full circle
-"""
+"""Cubic Bézier approximation of arcs and circles."""
 
 import math
 
 
-# ---- shared helpers ----------------------------------------------------------
-
 def _parse_arc_args(args):
-    """Parse arc arguments: (r,A,B), (P,r,A,B), or (x,y,r,A,B)."""
     if len(args) == 3:
-        return 0, 0, args[0], args[1], args[2]
-    elif len(args) == 4:
-        return args[0][0], args[0][1], args[1], args[2], args[3]
+        return 0, 0, *args
+    if len(args) == 4:
+        (x, y), radius, start, end = args
+        return x, y, radius, start, end
+    if len(args) == 5:
+        return args
+    raise TypeError("arc expects (r, a, b), (center, r, a, b) or (x, y, r, a, b)")
+
+
+def _makesimplearc(ps, x, y, radius, start, end):
+    """Append a Bézier segment spanning at most ninety degrees."""
+    factor = (4 / 3) * math.tan((end - start) / 4)
+    cs, ss = math.cos(start), math.sin(start)
+    ce, se = math.cos(end), math.sin(end)
+    p0 = (x + radius * cs, y + radius * ss)
+    p3 = (x + radius * ce, y + radius * se)
+    p1 = (p0[0] - factor * radius * ss, p0[1] + factor * radius * cs)
+    p2 = (p3[0] + factor * radius * se, p3[1] - factor * radius * ce)
+    ps.curveto(p1, p2, p3)
+
+
+def _draw_arc(ps, x, y, radius, start, end, clockwise=False):
+    if radius < 0:
+        raise ValueError("arc radius must be non-negative")
+    start *= ps.toRad
+    end *= ps.toRad
+    turn = 2 * math.pi
+    if clockwise and end > start:
+        end -= turn * math.ceil((end - start) / turn)
+    elif not clockwise and end < start:
+        end += turn * math.ceil((start - end) / turn)
+
+    point = (x + radius * math.cos(start), y + radius * math.sin(start))
+    if ps.currentpoint() is None:
+        ps.moveto(point)
     else:
-        return args[0], args[1], args[2], args[3], args[4]
+        ps.lineto(point)
 
+    sweep = end - start
+    segments = max(1, math.ceil(abs(sweep) / (math.pi / 2)))
+    for index in range(segments):
+        a = start + sweep * index / segments
+        b = start + sweep * (index + 1) / segments
+        if a != b and radius:
+            _makesimplearc(ps, x, y, radius, a, b)
 
-def _makesimplearc(ps, x, y, r, A, B):
-    """Draw a cubic Bezier approximation of a circular arc from A to B."""
-    dA = 0.5 * (B - A)
-    dx = r * math.cos(dA)
-    dy = r * math.sin(dA)
-    c = 4 * (r - dx) / (3.0 * dy)
-    dx0, dy0 = r * math.cos(A), r * math.sin(A)
-    dx3, dy3 = r * math.cos(B), r * math.sin(B)
-    P0 = [x + dx0, y + dy0]
-    P3 = [x + dx3, y + dy3]
-    P1 = [P0[0] - c * dy0, P0[1] + c * dx0]
-    P2 = [P3[0] + c * dy3, P3[1] - c * dx3]
-    ps.curveto(P1, P2, P3)
-
-
-def _draw_arc(ps, x, y, r, A, B, clockwise):
-    """Draw an arc from angle A to angle B, in the given direction.
-
-    Splits the arc into <= 90-degree segments to keep Bezier approximation
-    accurate for all radii.
-    """
-    A_rad = A * ps.toRad
-    B_rad = B * ps.toRad
-    quadrant = math.pi / 2
-
-    # Normalize angle range so the sweep is in the correct direction
-    if clockwise:
-        while A_rad < B_rad:
-            A_rad += 2 * math.pi
-    else:
-        while B_rad < A_rad:
-            B_rad += 2 * math.pi
-
-    # Move to start point (connect if there's a current point)
-    start = [x + r * math.cos(A_rad), y + r * math.sin(A_rad)]
-    if ps.currentpoint():
-        ps.lineto(*start)
-    else:
-        ps.moveto(*start)
-
-    # Draw quadrant-by-quadrant
-    step = quadrant if not clockwise else -quadrant
-    while abs(B_rad - A_rad) > quadrant:
-        next_a = A_rad + step
-        _makesimplearc(ps, x, y, r, A_rad, next_a)
-        A_rad = next_a
-
-    # Remaining segment (if any)
-    if abs(A_rad - B_rad) > 0.000000001:
-        _makesimplearc(ps, x, y, r, A_rad, B_rad)
-
-
-# ---- public API --------------------------------------------------------------
 
 def arc(ps, *args):
-    """Draw a counterclockwise arc.
-
-    arc(r, A, B)           — centered at origin
-    arc((x, y), r, A, B)   — centered at (x, y)
-    arc(x, y, r, A, B)     — centered at (x, y)
-    """
-    x, y, r, A, B = _parse_arc_args(args)
-    _draw_arc(ps, x, y, r, A, B, clockwise=False)
+    """Draw a counterclockwise arc in the current angular unit."""
+    _draw_arc(ps, *_parse_arc_args(args))
 
 
 def arcn(ps, *args):
-    """Draw a clockwise arc. Same argument forms as arc()."""
-    x, y, r, A, B = _parse_arc_args(args)
-    _draw_arc(ps, x, y, r, A, B, clockwise=True)
+    """Draw a clockwise arc in the current angular unit."""
+    _draw_arc(ps, *_parse_arc_args(args), clockwise=True)
 
 
 def circle(ps, *args):
-    """Draw a full circle.
-
-    circle(r)              — centered at origin
-    circle((x, y), r)      — centered at (x, y)
-    circle(x, y, r)        — centered at (x, y)
-    """
+    """Draw a circle in radians or degrees, respecting the selected mode."""
     if len(args) == 1:
-        x, y, r = 0, 0, args[0]
+        x, y, radius = 0, 0, args[0]
     elif len(args) == 2:
-        x, y, r = args[0][0], args[0][1], args[1]
+        (x, y), radius = args
+    elif len(args) == 3:
+        x, y, radius = args
     else:
-        x, y, r = args[0], args[1], args[2]
-
-    p2 = math.pi / 2
-    _draw_arc(ps, x, y, r, 0, p2, clockwise=False)
-    _draw_arc(ps, x, y, r, p2, math.pi, clockwise=False)
-    _draw_arc(ps, x, y, r, math.pi, 3 * p2, clockwise=False)
-    _draw_arc(ps, x, y, r, 3 * p2, 2 * math.pi, clockwise=False)
+        raise TypeError("circle expects (r), (center, r) or (x, y, r)")
+    _draw_arc(ps, x, y, radius, 0, 2 * math.pi / ps.toRad)
     ps.closepath()

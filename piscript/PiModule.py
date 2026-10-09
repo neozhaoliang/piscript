@@ -122,11 +122,12 @@ def interpolation(p, q, t):
     return interpolated(p, q, t)
 
 def fontlist():
+    """Return all registered TeX font names and aliases."""
     from piscript.TexAliasDict import aliasdict
     from piscript.TexFontNameDict import texfontname
-    FL = [[k, aliasdict[k]] for k in aliasdict]
-    FL.extend([k, texfontname[k]] for k in texfontname)
-    return FL
+
+    return [[name, value] for mapping in (aliasdict, texfontname)
+            for name, value in mapping.items()]
 
 def transform(m, v):
     from piscript.PSMatrix import transform as _mtransform
@@ -237,10 +238,12 @@ def bbox(*args):
     ps.boundedbox(*args)
 
 def ArcArrow(c, r, a, b):
-    ps.arcarrow(c, r, a, b)
+    """Compatibility spelling of arcarrow."""
+    return _arcarrow(ps, c, r, a, b)
 
 def ArcnArrow(c, r, a, b):
-    ps.arcnarrow(c, r, a, b)
+    """Compatibility spelling of arcnarrow."""
+    return _arcnarrow(ps, c, r, a, b)
 
 def current_point():
     return ps.currentpoint()

@@ -42,7 +42,10 @@ def cross(u, v):
 def angle_between(u, v):
     ru = length(u)
     rv = length(v)
-    return math.acos(mul(u, v) / (ru * rv))
+    if ru == 0 or rv == 0:
+        raise ValueError("angle is undefined for a zero-length vector")
+    cosine = mul(u, v) / (ru * rv)
+    return math.acos(max(-1.0, min(1.0, cosine)))
 
 
 def arg(u):
@@ -85,10 +88,7 @@ def reflected(f, u, v):
 
 def length(u):
     """Euclidean length of a vector."""
-    m = max(abs(x) for x in u)
-    if m == 0:
-        return 0
-    return m * math.sqrt(sum((x / m) ** 2 for x in u))
+    return math.hypot(*u)
 
 
 def evaluate(ell, P):
@@ -191,6 +191,8 @@ class _VectorBase(np.ndarray):
         else:
             vals = np.asarray(args, dtype=float)
 
+        if vals.ndim != 1:
+            raise ValueError(f"{cls.__name__} expects a one-dimensional vector")
         if cls.dim and len(vals) != cls.dim:
             raise ValueError(
                 f"{cls.__name__} requires exactly {cls.dim} elements,"
@@ -199,17 +201,28 @@ class _VectorBase(np.ndarray):
         return vals.view(cls)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        args = [
-            i.view(np.ndarray) if isinstance(i, _VectorBase) else i
-            for i in inputs
-        ]
-        result = getattr(ufunc, method)(*args, **kwargs)
-        if isinstance(result, np.ndarray) and result.ndim == 1:
-            out_type = type(self)
-            if out_type.dim and len(result) != out_type.dim:
-                out_type = Vector
-            return result.view(out_type)
-        return result
+        def unwrap(value):
+            return value.view(np.ndarray) if isinstance(value, _VectorBase) else value
+
+        original_out = kwargs.get("out")
+        if original_out is not None:
+            kwargs["out"] = tuple(unwrap(value) for value in original_out)
+        result = getattr(ufunc, method)(*(unwrap(item) for item in inputs), **kwargs)
+
+        if method == "at":
+            return None
+        if original_out is not None:
+            return original_out[0] if len(original_out) == 1 else original_out
+
+        def wrap(value):
+            if not isinstance(value, np.ndarray) or value.ndim != 1:
+                return value
+            vector_type = type(self)
+            if vector_type.dim and len(value) != vector_type.dim:
+                vector_type = Vector
+            return value.view(vector_type)
+
+        return tuple(map(wrap, result)) if isinstance(result, tuple) else wrap(result)
 
     def __array_finalize__(self, obj):
         if obj is None:
@@ -269,7 +282,7 @@ _VEC_REGISTRY = {}
 
 def _add_swizzles(cls):
     """Add swizzle properties to a fixed-dimension vector class."""
-    key_set = "xyzw"
+    key_set = "xyzwv"
     valid_keys = key_set[:cls.dim]
 
     # Single-character accessors: v.x, v.y, v.z, v.w

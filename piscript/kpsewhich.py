@@ -20,7 +20,7 @@ def _find_matplotlib(name):
     try:
         from matplotlib.dviread import find_tex_file
         return find_tex_file(name)
-    except (ImportError, FileNotFoundError):
+    except (ImportError, FileNotFoundError, RuntimeError):
         return None
 
 

@@ -40,9 +40,7 @@ class PiScript(Canvas):
             args.pop()
 
         if not args:
-            logger.error("No arguments for init!")
-            logger.error("Exiting ... ")
-            sys.exit(1)
+            raise ValueError("init() requires a filename and/or dimensions")
 
         # Parse filename, extension, and bounding box from args
         filename, ext, llx, lly, urx, ury = self._parse_args(args)
@@ -98,11 +96,7 @@ class PiScript(Canvas):
                 filename = a
             bbox_args = args[1:]
         else:
-            if not pyfile.endswith(".py"):
-                logger.error("Expecting source file with .py extension")
-                logger.error("Exiting ... ")
-                sys.exit(1)
-            filename = pyfile[:-3]
+            filename = pyfile[:-3] if pyfile.endswith(".py") else "output"
             # Support init(w, h, filename): extract any string from bbox args
             bbox_args = []
             for a in args:
@@ -121,8 +115,7 @@ class PiScript(Canvas):
         elif len(bbox_args) == 4:
             llx, lly, urx, ury = (int(x) for x in bbox_args)
         else:
-            logger.error("Expected 2 or 4 numeric args for dimensions")
-            sys.exit(1)
+            raise ValueError("expected (width, height) or (llx, lly, urx, ury)")
 
         return filename, ext, llx, lly, urx, ury
 
@@ -290,8 +283,7 @@ class PiScript(Canvas):
             if cfg is None:
                 logger.warning(f"TEX configuration {cfgfile} not found!")
                 logger.warning(f"checked: {os.path.join(os.getcwd(), cfgfile + '.py')}")
-                logger.error("Aborting due to missing TEX configuration")
-                sys.exit(1)
+                raise FileNotFoundError(f"TeX configuration not found: {cfgfile}")
         else:
             self.texenv = TexEnv(*args)
 
@@ -335,7 +327,11 @@ class PiScript(Canvas):
         import copy
         if not hasattr(self, '_texinsert_cache'):
             self._texinsert_cache = {}
-        cache_key = (texstring, save is not None, pin)
+        cache_key = (
+            texstring, save, pin, tuple(self.currentcolor()),
+            self.texenv.prefix, self.texenv.macros,
+            self.texenv.postfix, self.texenv.command,
+        )
         if cache_key in self._texinsert_cache:
             return copy.deepcopy(self._texinsert_cache[cache_key])
         if save:

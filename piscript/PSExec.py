@@ -1,7 +1,7 @@
 """PostScript output engine — converts Canvas command arrays to .ps/.eps files."""
 
 import re
-import random
+import tempfile
 import os
 
 from piscript.PSMatrix import concat as _mconcat, transform as _mtransform
@@ -41,8 +41,8 @@ endepsf = (
 class PSExec:
 
     def __init__(self):
-        self.storagePath = "PiScript-tmp" + str(int(1024 * random.random())) + ".pys"
-        self.storagefile = open(self.storagePath, "w", encoding="latin-1")
+        fd, self.storagePath = tempfile.mkstemp(prefix="piscript-", suffix=".pys")
+        self.storagefile = os.fdopen(fd, "w", encoding="latin-1")
         self.fontTable = FontTable()
         self.pagecount = 0
         self.gsno = 0

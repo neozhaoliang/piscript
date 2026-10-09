@@ -38,11 +38,12 @@ class Face:
     def __init__(self, *args):
         if isinstance(args[0], Face):
             f = args[0]
-            self.p = f.p
-            self.fill = f.fill
-            self.nf = f.nf
+            self.p = [list(point) for point in f.p]
+            self.fill = list(f.fill)
+            self.nf = list(f.nf)
             self.shading = f.shading
-            self.stroke = f.stroke
+            self.stroke = list(f.stroke)
+            self.extras = list(f.extras)
             return
         if len(args) == 1:
             self.p = args[0]
@@ -60,7 +61,9 @@ class Face:
     def shade_factor(self, s):
         return Bezier.bernstein(self.shading, (s + 1) / 2.0)
 
-    def setnormal(self, nf):    self.f[1] = nf
+    def setnormal(self, nf):
+        """Replace the plane equation of this face."""
+        self.nf = list(nf)
     def setfill(self, c):       self.fill = c
     def setstroke(self, c):     self.stroke = c
 

@@ -24,12 +24,12 @@ def _get_dims(ps):
     return getattr(ps, "_arrow_dimensions", _DEFAULT_DIMS)
 
 
-def _radian_radian_arc(ps, *args):
+def _radian_arc(ps, *args):
     # Helpers calculate in radians; Arc.arc follows the canvas angle mode.
     return _arc(ps, *args[:-2], args[-2] / ps.toRad, args[-1] / ps.toRad)
 
 
-def _radian_radian_arcn(ps, *args):
+def _radian_arcn(ps, *args):
     return _arcn(ps, *args[:-2], args[-2] / ps.toRad, args[-1] / ps.toRad)
 
 
@@ -162,7 +162,7 @@ class StubTail(_Transformable):
         elif c == 1:
             ctr = (p0 + p1) * 0.5
             ang = math.atan2(p0[1] - p1[1], p0[0] - p1[0])
-            _radian_radian_arc(p, ctr[0], ctr[1], 0.5 * self._dims.sw, ang, ang + math.pi)
+            _radian_arc(p, ctr[0], ctr[1], 0.5 * self._dims.sw, ang, ang + math.pi)
         else:
             v = (p0 - p1) * 0.5
             p.lineto(p0 + [-v[1], v[0]])
